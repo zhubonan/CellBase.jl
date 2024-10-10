@@ -45,20 +45,21 @@ Implicitly, the positions are wrapped inside the unit cell, even if the actual
 in the original Cell is outside the unit cell. This ensures the correct neighbour list
 begin constructed.
 """
-function ExtendedPointArray(cell::Cell, rcut)
+function ExtendedPointArray(cell::Cell, rcut) 
     rcut = convert(Float64, rcut)
     ni = nions(cell)
     shifts = CellBase.shift_vectors(cellmat(lattice(cell)), rcut; safe=false)
     indices = zeros(Int, ni * length(shifts))
     shiftidx = zeros(Int, ni * length(shifts))
-    pos_extended = zeros(eltype(positions(cell)), 3, ni * length(shifts))
+    pos_extended = zeros(eltype(positions(cell)), size(positions(cell), 1), ni * length(shifts))
 
     # Use the wrapped positions for building the point array
     wrapped = wrapped_spos(cell)
     i = 1
     for (idx, pos_orig) in enumerate(wrapped)   # Each original positions
         for (ishift, shiftvec) in enumerate(shifts)   # Each shift positions
-            pos_extended[:, i] .= pos_orig .+ shiftvec
+            pos_extended[:, i] .= pos_orig
+            pos_extended[1:3, i] .+= shiftvec
             indices[i] = idx
             shiftidx[i] = ishift
             i += 1
@@ -68,7 +69,7 @@ function ExtendedPointArray(cell::Cell, rcut)
         indices,
         shiftidx,
         shifts,
-        [SVector{3}(x) for x in eachcol(pos_extended)],
+        [SVector{size(pos_extended, 1)}(x) for x in eachcol(pos_extended)],
         wrapped,
         rcut,
         copy(cellmat(lattice(cell))),

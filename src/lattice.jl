@@ -248,7 +248,7 @@ function mic_safe(l::Lattice, v::AbstractMatrix)
         for (ishift, svec) in enumerate(eachcol(shiftvec))
             d2 = 0.0
             # dot(svec .+ vec, svec .+ vec)
-            for ii = 1:3
+            for ii = eachindex(svec)
                 @inbounds tmp = svec[ii] + vec[ii]
                 d2 += tmp * tmp
             end
@@ -260,7 +260,7 @@ function mic_safe(l::Lattice, v::AbstractMatrix)
             end
         end
         # Store the shifted vector and its length
-        for ii = 1:3
+        for ii = axes(minvecs, 1)
             minvecs[ii, i] = vec[ii] + shiftvec[ii, minshift]
         end
         mic_dist[i] = sqrt(mind2)

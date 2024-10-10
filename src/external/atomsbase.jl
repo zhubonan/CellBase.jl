@@ -1,6 +1,5 @@
-import AtomsBase
 using Unitful
-
+import AtomsBase
 
 function _cell_to_atomic_system(
     lattice::Lattice{T},
@@ -66,3 +65,54 @@ function Cell(system::AtomsBase.AbstractSystem; cell_unit=u"Å")
     end
     out
 end
+
+
+# This is for compatibility with AtomsBase.jl 0.4
+function AB.position(cell::Cell{T, N}, idx) where {T, N}
+    [SVector{N, T}(x) .* u"Å" for x in eachcol(@view positions(cell)[:, idx])]
+end
+
+function AB.position(cell::Cell{T, N}, idx::Int) where {T, N}
+    SVector{N, T}(positions(cell)[:, idx]) .* u"Å"
+end
+
+function AB.species(cell::Cell, idx)
+    species(cell)[idx]
+end
+
+
+
+function AB.cell(cell::Cell{T}) where {T}
+    AB.PeriodicCell(cell_vectors=NTuple{3}(SVector{3, T}(x) .* u"Å" for x in eachcol(cellmat(cell))), periodicity=(true, true, true))
+end
+
+function Base.getindex(cell::Cell, idx::Int)
+    pos = positions(cell)[:, idx] .* u"Å"
+    AB.Atom(species(cell)[idx], pos)
+end
+
+# System property access
+function Base.getindex(system::Cell, x::Symbol)
+    if x === :bounding_box
+        AtomsBase.bounding_box(system)
+    elseif x === :periodicity
+        AtomsBase.periodicity(system)
+    else
+        getindex(system.metadata, x)
+    end
+end
+
+
+function Base.haskey(system::Cell, x::Symbol)
+    x in (:bounding_box, :periodicity) || haskey(system.data, x)
+end
+
+
+
+function AB.bounding_box(cell::Cell{T}) where {T}
+    NTuple{3}(SVector{3, T}(x) .* u"Å" for x in eachcol(cellmat(cell)))
+end
+
+Base.keys(cell::Cell) = (:bounding_box, :periodicity, keys(cell.metadata)...)
+AB.periodicity(cell::Cell) = (true, true, true)
+AB.n_dimensions(cell::Cell{T, N}) where {T, N} = N

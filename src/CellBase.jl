@@ -1,5 +1,6 @@
 module CellBase
-
+import AtomsBase
+const AB = AtomsBase
 greet() = print("Hello World!")
 
 include("elemental_data.jl")

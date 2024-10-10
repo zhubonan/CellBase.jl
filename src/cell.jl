@@ -30,7 +30,7 @@ A Cell represents a periodic structure in three-dimensional space.
 
 Defined as:
 ```julia
-mutable struct Cell{T}
+mutable struct Cell{D, T}
     lattice::Lattice{T}                 # Lattice of the structure
     symbols::Vector{Symbol}
     positions::Matrix{T}
@@ -40,7 +40,7 @@ end
 ```
 
 """
-mutable struct Cell{T}
+mutable struct Cell{T, D}  <: AB.AbstractSystem{D}
     lattice::Lattice{T}                 # Lattice of the structure
     symbols::Vector{Symbol}
     positions::Matrix{T}
@@ -56,7 +56,7 @@ Construct a Cell type from arrays
 function Cell(l::Lattice, symbols::Vector{Symbol}, positions::Matrix)
     arrays = Dict{Symbol, Any}()
     @assert length(symbols) == size(positions, 2)
-    Cell(l, symbols, positions, arrays, Dict{Symbol,Any}())
+    Cell{eltype(positions), size(positions, 1)}(l, symbols, positions, arrays, Dict{Symbol,Any}())
 end
 
 """
@@ -91,7 +91,7 @@ end
 
 Clip a structure with a given indexing array
 """
-function clip(cell::Cell, mask::AbstractVector)
+function clip(cell::Cell{T, N}, mask::AbstractVector) where {T, N}
     new_pos = positions(cell)[:, mask]
     new_symbols = species(cell)[mask]
     # Clip any additional arrays
@@ -99,7 +99,7 @@ function clip(cell::Cell, mask::AbstractVector)
     for (key, array) in pairs(cell.arrays)
         new_array[key] = selectdim(array, ndims(array), mask)
     end
-    Cell(lattice(cell), new_symbols, new_pos, new_array, cell.metadata)
+    Cell{T, N}(lattice(cell), new_symbols, new_pos, new_array, cell.metadata)
 end
 
 Base.getindex(cell::Cell, i::AbstractVector) = clip(cell, i)
@@ -170,8 +170,8 @@ get_positions(cell::Cell) = copy(cell.positions)
 Return the positions as a Vector of static arrays.
 The returned array can provide improved performance for certain type of operations.
 """
-sposarray(structure::Cell{T}) where {T} =
-    [SVector{3,T}(x) for x in eachcol(positions(structure))]
+sposarray(structure::Cell{T, N}) where {T, N} =
+    [SVector{N,T}(x) for x in eachcol(positions(structure))]
 
 """
     species(structure::Cell)
@@ -392,7 +392,7 @@ wrap!(vec::AbstractVector, c::Cell) = wrap!(vec, lattice(c))
 
 Return a static array of wrapped positons.
 """
-function wrapped_spos(cell)
+function wrapped_spos(cell::Cell{T, 3}) where {T}
     posarray = sposarray(cell)
     recmat = SMatrix{3,3}(rec_cellmat(lattice(cell)))
     cmat = SMatrix{3,3}(cellmat(cell))
@@ -401,6 +401,24 @@ function wrapped_spos(cell)
         x -= floor.(x)
         x = cmat * x
         posarray[i] = x
+    end
+    posarray
+end
+
+"""
+    wrapped_spos(cell)
+
+Return a static array of wrapped positons.
+"""
+function wrapped_spos(cell::Cell)
+    posarray = sposarray(cell)
+    recmat = SMatrix{3,3}(rec_cellmat(lattice(cell)))
+    cmat = SMatrix{3,3}(cellmat(cell))
+    for i = 1:length(posarray)
+        x = recmat * posarray[i][1:3]
+        x -= floor.(x)
+        x = cmat * x
+        posarray[i] = vcat(x, posarray[i][4:end])
     end
     posarray
 end
@@ -474,7 +492,7 @@ function Base.show(io::IO, ::MIME"text/plain", s::Cell)
 end
 
 Base.length(cell::Cell) = natoms(cell)
-Base.getindex(cell::Cell, i::Int) = Site(@view(cell.positions[:, i]), i, cell.symbols[i])
+#Base.getindex(cell::Cell, i::Int) = Site(@view(cell.positions[:, i]), i, cell.symbols[i])
 
 
 function distance_matrix(cell::Cell; mic=true)
@@ -551,7 +569,7 @@ Return the squared distance between two positions stored in a matrix and shift v
 """
 function distance_squared_between(posmat::Matrix, i, j, svec::Matrix, ishift)
     d2 = 0.0
-    for n = 1:3
+    for n = 1:size(posmat, 1)
         d = posmat[n, j] - posmat[n, i] + svec[n, ishift]
         d2 += d * d
     end
@@ -641,7 +659,7 @@ function make_supercell(structure::Cell, a, b, c)
     for (i, shift) in enumerate(svec)
         for j = 1:ns
             idx = j + (i - 1) * ns  # New index
-            for n = 1:3
+            for n = axes(new_pos, 1)
                 @inbounds new_pos[n, idx] = current_pos[n, j] + shift[n]
             end
         end
