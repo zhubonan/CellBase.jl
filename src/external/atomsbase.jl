@@ -49,10 +49,10 @@ Construct a `Cell` object from AbstractSystem.
 The length unit for the `Cell` object returned well be in the `cell_unit`.
 """
 function Cell(system::AtomsBase.AbstractSystem; cell_unit=u"Å")
-    pos = hcat(map(x -> collect(ustrip.(cell_unit, x)), AtomsBase.position(system))...)
+    pos = hcat(map(x -> collect(ustrip.(cell_unit, x)), AtomsBase.position(system, :))...)
     cm = hcat(map(x -> collect(ustrip.(cell_unit, x)), AtomsBase.bounding_box(system))...)
     @assert all(AtomsBase.periodicity(system))
-    out = Cell(Lattice(cm), AtomsBase.atomic_symbol(system), pos)
+    out = Cell(Lattice(cm), map(Symbol, AtomsBase.atomic_symbol(system, :)), pos)
     # Store sys.data in metadata
     if isa(system, AtomsBase.FlexibleSystem)
         for (key, value) in system.data

@@ -1,5 +1,6 @@
 using Test
 using CellBase
+import AtomsBase
 import Spglib
 
 @testset "Cell" begin
@@ -62,11 +63,8 @@ import Spglib
     @testset "interface" begin
         @test length(example_cell) == 4
         @test length(example_cell[[1, 2]]) == 2
-        @test isa(example_cell[1], CellBase.Site)
+        @test isa(example_cell[1], AtomsBase.Atom)
         stmp = deepcopy(example_cell)
-        site = stmp[1]
-        site.position[1] = -10.0
-        @test stmp.positions[1, 1] == -10.0
 
         # Test clipping
         tmp = example_cell2[[1, 3]]
@@ -297,7 +295,7 @@ end
 
     sys = CellBase.AtomsBase.atomic_system(cell)
     converted = Cell(sys)
-    @test CellBase.AtomsBase.atomic_symbol(sys) == species(cell)
+    @test CellBase.AtomsBase.atomic_symbol(sys, :) == species(cell)
     @test cellmat(converted) == cellmat(cell)
     for i = 1:3
         @test all(collect(CellBase.ustrip.(CellBase.AtomsBase.bounding_box(sys)[i])) .== cellvecs(lattice(cell))[i])
