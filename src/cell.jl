@@ -48,6 +48,8 @@ mutable struct Cell{T, D}  <: AB.AbstractSystem{D}
     metadata::Dict{Symbol,Any}
 end
 
+_n_dimensions(::Cell{T, D}) where {T, D} = D
+
 """
     Cell(l::Lattice, symbols, positions) where T
 
@@ -481,12 +483,17 @@ function Base.show(io::IO, ::MIME"text/plain", s::Cell)
     sym = species(s)
     for i = 1:nions(s)
         symbol = sym[i]
-        println(
-            io,
-            @sprintf "%4s  %10.5f  %10.5f  %10.5f" symbol posmat[1, i] posmat[2, i] posmat[
+        line =  @sprintf "%4s  %10.5f  %10.5f  %10.5f" symbol posmat[1, i] posmat[2, i] posmat[
                 3,
                 i,
             ]
+        if n_dimensions(s) > 3
+            extra = join([@sprintf("%10.5f ", i) for i in posmat[4:end, i]], "")
+            line = line * "  ($extra  )"
+        end
+        println(
+            io,
+            line
         )
     end
 end

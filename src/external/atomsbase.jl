@@ -102,6 +102,16 @@ function Base.getindex(system::Cell, x::Symbol)
     end
 end
 
+Base.getindex(system::Cell, ::Colon, x::Symbol) = getindex(system.arrays, x)
+
+function Base.setindex!(system::Cell, value, key::Symbol)
+    system.metadata[key] = value
+end
+
+function Base.setindex!(system::Cell, value::AbstractArray, ::Colon, key::Symbol)
+    @assert size(value, ndims(value)) == length(cell)
+    system.arrays[key] = value
+end
 
 function Base.haskey(system::Cell, x::Symbol)
     x in (:bounding_box, :periodicity) || haskey(system.data, x)
@@ -116,3 +126,5 @@ end
 Base.keys(cell::Cell) = (:bounding_box, :periodicity, keys(cell.metadata)...)
 AB.periodicity(cell::Cell) = (true, true, true)
 AB.n_dimensions(cell::Cell{T, N}) where {T, N} = N
+
+const n_dimensions = AB.n_dimensions
