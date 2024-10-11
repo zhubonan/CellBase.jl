@@ -54,14 +54,14 @@ function Cell(system::AtomsBase.AbstractSystem; cell_unit=u"Å")
     @assert all(AtomsBase.periodicity(system))
     out = Cell(Lattice(cm), map(Symbol, AtomsBase.atomic_symbol(system, :)), pos)
     # Store sys.data in metadata
-    if isa(system, AtomsBase.FlexibleSystem)
-        for (key, value) in system.data
-            out.metadata[key] = value
-        end
-        property_keys = vcat(map(x -> collect(keys(x.data)), system)...) |> unique
-        for key in property_keys
-            out.arrays[key] = hcat(map(x -> x[key], system)...)
-        end
+    for key in keys(system)
+        key in (:periodicity, :bounding_box) && continue
+        out.metadata[key] = value
+    end
+
+    for key in AtomsBase.atomkeys(system)
+        key in (:position, :specie, :mass) && continue
+        out.arrays[key] = system[:, key]
     end
     out
 end
@@ -76,10 +76,13 @@ function AB.position(cell::Cell{T, N}, idx::Int) where {T, N}
     SVector{N, T}(positions(cell)[:, idx]) .* u"Å"
 end
 
-function AB.species(cell::Cell, idx)
-    species(cell)[idx]
-end
+"""
+    species(structure::Cell)
 
+Return a Vector of species names.
+"""
+AB.species(structure::Cell) = AB.ChemicalSpecies.(structure.symbols)
+AB.species(structure::Cell, idx) = AB.ChemicalSpecies.(structure.symbols[idx])
 
 
 function AB.cell(cell::Cell{T}) where {T}
@@ -116,8 +119,6 @@ end
 function Base.haskey(system::Cell, x::Symbol)
     x in (:bounding_box, :periodicity) || haskey(system.data, x)
 end
-
-
 
 function AB.bounding_box(cell::Cell{T}) where {T}
     NTuple{3}(SVector{3, T}(x) .* u"Å" for x in eachcol(cellmat(cell)))

@@ -183,13 +183,6 @@ Return a Vector of species names.
 species(structure::Cell) = structure.symbols
 
 """
-    get_species(structure::Cell)
-
-Return a Vector (copy) of species names.
-"""
-get_species(structure::Cell) = copy(structure.symbols)
-
-"""
     atomic_numbers(structure::Cell)
 
 Return a Vector of the atomic numbers.
