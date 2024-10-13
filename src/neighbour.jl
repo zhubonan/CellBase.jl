@@ -161,26 +161,26 @@ end
 
 Type for representing a neighbour list
 """
-mutable struct NeighbourList{T,N}
-    ea::ExtendedPointArray{T}
+mutable struct NeighbourList{T,D}
+    ea::ExtendedPointArray{T, D}
     "Extended indices of the neighbours"
     extended_indices::Matrix{Int}
     "Original indices of the neighbours"
     orig_indices::Matrix{Int}
     "Distance to the neighbours"
-    distance::Matrix{Float64}
+    distance::Matrix{T}
     "Vector displacement to the neighbours"
-    vectors::Array{SVector{N,Float64},2}
+    vectors::Array{SVector{D,T},2}
     "Number of neighbours"
     nneigh::Vector{Int}
     "Maximum number of neighbours that can be stored"
     nmax::Int
     "Contains vector displacements or not"
     has_vectors::Bool
-    rcut::Float64
+    rcut::T
     nmax_limit::Int
     last_rebuild_positions::Vector{T}
-    skin::Float64
+    skin::T
 end
 
 """Check if a static vector only contains zeros"""
@@ -214,14 +214,14 @@ end
 Construct a NeighbourList from an extended point array for the points in the original cell
 """
 function NeighbourList(
-    ea::ExtendedPointArray{T},
+    ea::ExtendedPointArray{T, D},
     rcut,
     nmax=1000;
     savevec=false,
     ndim=length(ea.positions[1]),
     nmax_limit=5000,
     skin=-1.0,
-) where {T}
+) where {T, D}
     rcut = convert(Float64, rcut)
 
     # If using skin, update the rcut
@@ -245,7 +245,7 @@ function NeighbourList(
     # Save vectors or not
     base = @SVector fill(-1.0, ndim)
     savevec ? vectors = fill(base, nmax, norig) : vectors = fill(base, 1, 1)
-    nl = NeighbourList(
+    nl = NeighbourList{T, D}(
         ea,
         extended_indices,
         orig_indices,
