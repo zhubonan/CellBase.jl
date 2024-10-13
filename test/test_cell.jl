@@ -251,11 +251,11 @@ end
         reduced_cell2 = niggli_reduce_cell(testcell; wrap_pos=true)
         CellBase.wrap!(reduced_cell)
 
-        cube =Lattice(10, 10, 10)
-        vec = [1., 1., 1.]
+        cube = Lattice(10, 10, 10)
+        vec = [1.0, 1.0, 1.0]
         CellBase.wrap!(vec, cube)
         @test all(vec .== [1, 1, 1])
-        vec = [-1., -1., -1.]
+        vec = [-1.0, -1.0, -1.0]
         CellBase.wrap!(vec, cube)
         @test all(vec .== [9, 9, 9])
 
@@ -298,7 +298,10 @@ end
     @test CellBase.AtomsBase.atomic_symbol(sys, :) == species(cell)
     @test cellmat(converted) == cellmat(cell)
     for i = 1:3
-        @test all(collect(CellBase.ustrip.(CellBase.AtomsBase.bounding_box(sys)[i])) .== cellvecs(lattice(cell))[i])
+        @test all(
+            collect(CellBase.ustrip.(CellBase.AtomsBase.bounding_box(sys)[i])) .==
+            cellvecs(lattice(cell))[i],
+        )
     end
 
     @test positions(converted) == positions(cell)

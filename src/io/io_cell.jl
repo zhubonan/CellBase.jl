@@ -51,14 +51,16 @@ function read_cellmat(lines)
 
     if length(block) > 0
         unit, block = separate_unit(block)
-        !isempty(unit) && @assert startswith(unit, "ANG") "Only support Angstrom for lattice but $(unit) found"
+        !isempty(unit) &&
+            @assert startswith(unit, "ANG") "Only support Angstrom for lattice but $(unit) found"
         cellmat = copy(read_num_block(block, 3, column_major=true))
 
     else
         cell_par = Array{Float64}(undef, 6)
         block = find_block(lines, "LATTICE_ABC")
         unit, block = separate_unit(block)
-        !isempty(unit) && @assert startswith(unit, "ANG") "Only support Angstrom  for lattice but $(unit) found"
+        !isempty(unit) &&
+            @assert startswith(unit, "ANG") "Only support Angstrom  for lattice but $(unit) found"
 
         @assert length(block) > 0 "Neither lattice_cart or lattice_abc are present"
         cell_par_raw = read_num_block(block, 3)
@@ -77,7 +79,8 @@ function read_positions(lines, cellmat)
     if length(block) > 0
         is_abs = true
         unit, block = separate_unit(block)
-        !isempty(unit) && @assert startswith(unit, "ANG") "Only support Angstrom for positions but found $(unit)"
+        !isempty(unit) &&
+            @assert startswith(unit, "ANG") "Only support Angstrom for positions but found $(unit)"
     else
         block = find_block(lines, "POSITIONS_FRAC")
     end

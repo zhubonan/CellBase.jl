@@ -40,15 +40,15 @@ end
 ```
 
 """
-mutable struct Cell{T, D}  <: AB.AbstractSystem{D}
+mutable struct Cell{T,D} <: AB.AbstractSystem{D}
     lattice::Lattice{T}                 # Lattice of the structure
     symbols::Vector{Symbol}
     positions::Matrix{T}
-    arrays::Dict{Symbol, Any}        # Any additional arrays
+    arrays::Dict{Symbol,Any}        # Any additional arrays
     metadata::Dict{Symbol,Any}
 end
 
-_n_dimensions(::Cell{T, D}) where {T, D} = D
+_n_dimensions(::Cell{T,D}) where {T,D} = D
 
 """
     Cell(l::Lattice, symbols, positions) where T
@@ -56,9 +56,15 @@ _n_dimensions(::Cell{T, D}) where {T, D} = D
 Construct a Cell type from arrays
 """
 function Cell(l::Lattice, symbols::Vector{Symbol}, positions::Matrix)
-    arrays = Dict{Symbol, Any}()
+    arrays = Dict{Symbol,Any}()
     @assert length(symbols) == size(positions, 2)
-    Cell{eltype(positions), size(positions, 1)}(l, symbols, positions, arrays, Dict{Symbol,Any}())
+    Cell{eltype(positions),size(positions, 1)}(
+        l,
+        symbols,
+        positions,
+        arrays,
+        Dict{Symbol,Any}(),
+    )
 end
 
 """
@@ -93,7 +99,7 @@ end
 
 Clip a structure with a given indexing array
 """
-function clip(cell::Cell{T, N}, mask::AbstractVector) where {T, N}
+function clip(cell::Cell{T,N}, mask::AbstractVector) where {T,N}
     new_pos = positions(cell)[:, mask]
     new_symbols = species(cell)[mask]
     # Clip any additional arrays
@@ -101,7 +107,7 @@ function clip(cell::Cell{T, N}, mask::AbstractVector) where {T, N}
     for (key, array) in pairs(cell.arrays)
         new_array[key] = selectdim(array, ndims(array), mask)
     end
-    Cell{T, N}(lattice(cell), new_symbols, new_pos, new_array, cell.metadata)
+    Cell{T,N}(lattice(cell), new_symbols, new_pos, new_array, cell.metadata)
 end
 
 Base.getindex(cell::Cell, i::AbstractVector) = clip(cell, i)
@@ -172,7 +178,7 @@ get_positions(cell::Cell) = copy(cell.positions)
 Return the positions as a Vector of static arrays.
 The returned array can provide improved performance for certain type of operations.
 """
-sposarray(structure::Cell{T, N}) where {T, N} =
+sposarray(structure::Cell{T,N}) where {T,N} =
     [SVector{N,T}(x) for x in eachcol(positions(structure))]
 
 """
@@ -374,7 +380,7 @@ end
 Wrap a vector back to the periodic box defined by the lattice vectors.
 """
 function wrap!(vec::AbstractVector, l::Lattice)
-    frac = l.rec * vec 
+    frac = l.rec * vec
     frac .-= floor.(frac)
     vec .= l.matrix * frac
 end
@@ -387,7 +393,7 @@ wrap!(vec::AbstractVector, c::Cell) = wrap!(vec, lattice(c))
 
 Return a static array of wrapped positons.
 """
-function wrapped_spos(cell::Cell{T, 3}) where {T}
+function wrapped_spos(cell::Cell{T,3}) where {T}
     posarray = sposarray(cell)
     recmat = SMatrix{3,3}(rec_cellmat(lattice(cell)))
     cmat = SMatrix{3,3}(cellmat(cell))
@@ -476,7 +482,8 @@ function Base.show(io::IO, ::MIME"text/plain", s::Cell)
     sym = species(s)
     for i = 1:nions(s)
         symbol = sym[i]
-        line =  @sprintf "%4s  %10.5f  %10.5f  %10.5f" symbol posmat[1, i] posmat[2, i] posmat[
+        line =
+            @sprintf "%4s  %10.5f  %10.5f  %10.5f" symbol posmat[1, i] posmat[2, i] posmat[
                 3,
                 i,
             ]
@@ -484,10 +491,7 @@ function Base.show(io::IO, ::MIME"text/plain", s::Cell)
             extra = join([@sprintf("%10.5f ", i) for i in posmat[4:end, i]], "")
             line = line * "  ($extra  )"
         end
-        println(
-            io,
-            line
-        )
+        println(io, line)
     end
 end
 
@@ -659,7 +663,7 @@ function make_supercell(structure::Cell, a, b, c)
     for (i, shift) in enumerate(svec)
         for j = 1:ns
             idx = j + (i - 1) * ns  # New index
-            for n = axes(new_pos, 1)
+            for n in axes(new_pos, 1)
                 @inbounds new_pos[n, idx] = current_pos[n, j] + shift[n]
             end
         end

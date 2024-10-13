@@ -68,12 +68,12 @@ end
 
 
 # This is for compatibility with AtomsBase.jl 0.4
-function AB.position(cell::Cell{T, N}, idx) where {T, N}
-    [SVector{N, T}(x) .* u"Å" for x in eachcol(@view positions(cell)[:, idx])]
+function AB.position(cell::Cell{T,N}, idx) where {T,N}
+    [SVector{N,T}(x) .* u"Å" for x in eachcol(@view positions(cell)[:, idx])]
 end
 
-function AB.position(cell::Cell{T, N}, idx::Int) where {T, N}
-    SVector{N, T}(positions(cell)[:, idx]) .* u"Å"
+function AB.position(cell::Cell{T,N}, idx::Int) where {T,N}
+    SVector{N,T}(positions(cell)[:, idx]) .* u"Å"
 end
 
 """
@@ -86,7 +86,10 @@ AB.species(structure::Cell, idx) = AB.ChemicalSpecies.(structure.symbols[idx])
 
 
 function AB.cell(cell::Cell{T}) where {T}
-    AB.PeriodicCell(cell_vectors=NTuple{3}(SVector{3, T}(x) .* u"Å" for x in eachcol(cellmat(cell))), periodicity=(true, true, true))
+    AB.PeriodicCell(
+        cell_vectors=NTuple{3}(SVector{3,T}(x) .* u"Å" for x in eachcol(cellmat(cell))),
+        periodicity=(true, true, true),
+    )
 end
 
 function Base.getindex(cell::Cell, idx::Int)
@@ -121,11 +124,11 @@ function Base.haskey(system::Cell, x::Symbol)
 end
 
 function AB.bounding_box(cell::Cell{T}) where {T}
-    NTuple{3}(SVector{3, T}(x) .* u"Å" for x in eachcol(cellmat(cell)))
+    NTuple{3}(SVector{3,T}(x) .* u"Å" for x in eachcol(cellmat(cell)))
 end
 
 Base.keys(cell::Cell) = (:bounding_box, :periodicity, keys(cell.metadata)...)
 AB.periodicity(cell::Cell) = (true, true, true)
-AB.n_dimensions(cell::Cell{T, N}) where {T, N} = N
+AB.n_dimensions(cell::Cell{T,N}) where {T,N} = N
 
 const n_dimensions = AB.n_dimensions

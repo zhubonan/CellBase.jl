@@ -14,17 +14,17 @@ const MAX_SHIFTS = 100000
 """
 Represent an array of points after expansion by periodic boundary
 """
-struct ExtendedPointArray{T, D}
+struct ExtendedPointArray{T,D}
     "Original point indices"
     indices::Vector{Int}
     "Index of the shift"
     shiftidx::Vector{Int}
     "Shift vectors"
-    shiftvecs::Vector{SVector{D, T}}
+    shiftvecs::Vector{SVector{D,T}}
     "Positions"
-    positions::Vector{SVector{D, T}}
+    positions::Vector{SVector{D,T}}
     "original Positions"
-    orig_positions::Vector{SVector{D, T}}
+    orig_positions::Vector{SVector{D,T}}
     "Index of of the all-zero shift vector"
     rcut::T
     lattice::Matrix{T}
@@ -45,17 +45,19 @@ Implicitly, the positions are wrapped inside the unit cell, even if the actual
 in the original Cell is outside the unit cell. This ensures the correct neighbour list
 begin constructed.
 """
-function ExtendedPointArray(cell::Cell{T, D}, rcut) where {T, D} 
+function ExtendedPointArray(cell::Cell{T,D}, rcut) where {T,D}
     rcut = convert(Float64, rcut)
     ni = nions(cell)
     shifts = CellBase.shift_vectors(cellmat(lattice(cell)), rcut; safe=false)
     # Pad the shift vectors with zeros
     if D > 3
-        shifts = [vcat(value, SVector{D-3, T}([zero(T) for i in 1:D-3])) for value in shifts]
+        shifts =
+            [vcat(value, SVector{D - 3,T}([zero(T) for i = 1:D-3])) for value in shifts]
     end
     indices = zeros(Int, ni * length(shifts))
     shiftidx = zeros(Int, ni * length(shifts))
-    pos_extended = zeros(eltype(positions(cell)), size(positions(cell), 1), ni * length(shifts))
+    pos_extended =
+        zeros(eltype(positions(cell)), size(positions(cell), 1), ni * length(shifts))
 
     # Use the wrapped positions for building the point array
     wrapped = wrapped_spos(cell)
@@ -68,7 +70,7 @@ function ExtendedPointArray(cell::Cell{T, D}, rcut) where {T, D}
             i += 1
         end
     end
-    ExtendedPointArray{T, D}(
+    ExtendedPointArray{T,D}(
         indices,
         shiftidx,
         shifts,
@@ -101,10 +103,11 @@ end
 
 Update extended points with lattice shifts - need to rebuild from scratch
 """
-function _update_ea_with_lattice_change(ea::ExtendedPointArray{T,D}, cell) where {T, D}
+function _update_ea_with_lattice_change(ea::ExtendedPointArray{T,D}, cell) where {T,D}
     newshifts = CellBase.shift_vectors(cellmat(lattice(cell)), ea.rcut; safe=false)
     if D > 3
-        newshifts = [vcat(value, SVector{D-3, T}([zero(T) for i in 1:D-3])) for value in newshifts]
+        newshifts =
+            [vcat(value, SVector{D - 3,T}([zero(T) for i = 1:D-3])) for value in newshifts]
     end
     # Number of vectors change
     nnew = length(newshifts)
@@ -162,7 +165,7 @@ end
 Type for representing a neighbour list
 """
 mutable struct NeighbourList{T,D}
-    ea::ExtendedPointArray{T, D}
+    ea::ExtendedPointArray{T,D}
     "Extended indices of the neighbours"
     extended_indices::Matrix{Int}
     "Original indices of the neighbours"
@@ -189,7 +192,7 @@ allzeros(svec::SVector{2}) = (svec[1] == 0) && (svec[2] == 0)
 allzeros(svec::SVector{3}) = (svec[1] == 0) && (svec[2] == 0) && (svec[3] == 0)
 allzeros(svec::SVector{4}) =
     (svec[1] == 0) && (svec[2] == 0) && (svec[3] == 0) && (svec[4] == 0)
-allzeros(svec::SVector) = !any(x-> x != 0, svec)
+allzeros(svec::SVector) = !any(x -> x != 0, svec)
 
 "Number of ions in the original cell"
 nions_orig(n::ExtendedPointArray) = length(n.orig_positions)
@@ -214,14 +217,14 @@ end
 Construct a NeighbourList from an extended point array for the points in the original cell
 """
 function NeighbourList(
-    ea::ExtendedPointArray{T, D},
+    ea::ExtendedPointArray{T,D},
     rcut,
     nmax=1000;
     savevec=false,
     ndim=length(ea.positions[1]),
     nmax_limit=5000,
     skin=-1.0,
-) where {T, D}
+) where {T,D}
     rcut = convert(Float64, rcut)
 
     # If using skin, update the rcut
@@ -245,7 +248,7 @@ function NeighbourList(
     # Save vectors or not
     base = @SVector fill(-1.0, ndim)
     savevec ? vectors = fill(base, nmax, norig) : vectors = fill(base, 1, 1)
-    nl = NeighbourList{T, D}(
+    nl = NeighbourList{T,D}(
         ea,
         extended_indices,
         orig_indices,
