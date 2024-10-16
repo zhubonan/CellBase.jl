@@ -737,3 +737,30 @@ function fingerprint_distance(f1::AbstractVector, f2::AbstractVector; lim=Inf)
     end
     d / comp
 end
+
+
+"""
+    add_dimensions(cell::Cell, ndims, dscale=3.0)
+
+Add additional dimensions to the cell
+"""
+function add_dimensions(cell::Cell, ndims, dscale=3.0)
+    pos = positions(cell)
+    hyperpos = vcat(pos, (rand(ndims, size(pos, 2)) .- 0.5) .* 2dscale)
+    out = Cell(lattice(cell), species(cell), hyperpos)
+    out.metadata = cell.metadata
+    out
+end
+
+
+"""
+    remove_dimensions(cell::Cell)
+
+Remove the extra dimensions in the cell
+"""
+function remove_dimensions(cell::Cell)
+    pos = positions(cell)[1:3, :]
+    out = Cell(lattice(cell), species(cell), pos)
+    out.metadata = cell.metadata
+    out
+end
