@@ -132,3 +132,7 @@ AB.periodicity(cell::Cell) = (true, true, true)
 AB.n_dimensions(cell::Cell{T,N}) where {T,N} = N
 
 const n_dimensions = AB.n_dimensions
+
+function AB.mass(cell::Cell, idx)
+    getproperty.(AB.element.(AB.species(cell, idx)), :atomic_mass)
+end
