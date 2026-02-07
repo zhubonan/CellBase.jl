@@ -136,3 +136,8 @@ const n_dimensions = AB.n_dimensions
 function AB.mass(cell::Cell, idx)
     getproperty.(AB.element.(AB.species(cell, idx)), :atomic_mass)
 end
+
+# Distance squared between functions interface
+distance_squared_between(s1::AtomsBase.Atom, s2::AtomsBase.Atom) = sum((s1.position .- s2.position) .^ 2)
+distance_squared_between(s1::AtomsBase.Atom, s2::AtomsBase.Atom, shift) =
+            sum((s1.position .- s2.position .- shift) .^ 2)
