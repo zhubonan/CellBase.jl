@@ -247,7 +247,13 @@ get_cellmat(structure::Cell) = get_cellmat(lattice(structure))
 
 Return the additional array stored in the `Cell` object.
 """
-array(structure::Cell, arrayname::Symbol) = structure.arrays[arrayname]
+function array(structure::Cell, arrayname::Symbol)
+    if !haskey(structure.arrays, arrayname)
+        available = join(keys(structure.arrays), ", ")
+        throw(ArgumentError("Array '$arrayname' not found in Cell. Available arrays: $available"))
+    end
+    return structure.arrays[arrayname]
+end
 
 """
     arraynames(structure::Cell)
@@ -454,9 +460,8 @@ set_positions!(cell::Cell, pos) = cell.positions .= pos
 Rattle the positions of the cell for a given maximum amplitude (uniform distribution).
 """
 function rattle!(cell::Cell, amp)
-    dev = rand(length(positions(cell)))
     for i in eachindex(cell.positions)
-        cell.positions[i] += (rand() - 0.5) * 2amp
+        cell.positions[i] += (rand() - 0.5) * 2 * amp
     end
 end
 
@@ -680,8 +685,20 @@ Computed the fingerprint vector based on simple sorted pair-wise distances.
 NOTE: Does not work for single atom cell!!
 """
 function fingerprint(s::Cell; dmat=distance_matrix(s), weighted=true, cut_bl=3.0)
+    # Validate input
+    nn, _ = size(dmat)
+    if nn < 2
+        throw(ArgumentError("fingerprint requires at least 2 atoms, got $nn"))
+    end
+
+    # Check if there are any non-zero distances
+    nonzero_dists = [d for d in dmat if d > 0.0]
+    if isempty(nonzero_dists)
+        throw(ArgumentError("fingerprint requires at least one non-zero distance"))
+    end
+
     # Cut off distance based on minimum bond length
-    cut_bl = minimum(d for d in dmat if d > 0.0) * cut_bl
+    cut_bl = minimum(nonzero_dists) * cut_bl
     # Allocate workspace
     nn, _ = size(dmat)
     dist = zeros(nn * nn)

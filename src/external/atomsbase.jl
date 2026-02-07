@@ -56,12 +56,18 @@ function Cell(system::AtomsBase.AbstractSystem; cell_unit=u"Å")
     # Store sys.data in metadata
     for key in keys(system)
         key in (:periodicity, :bounding_box) && continue
-        out.metadata[key] = value
+        out.metadata[key] = system[key]
     end
 
     for key in AtomsBase.atomkeys(system)
         key in (:position, :specie, :mass) && continue
-        out.arrays[key] = system[:, key]
+        arr = system[:, key]
+        # Convert vector of arrays/vectors back to matrix format
+        if !isempty(arr) && first(arr) isa AbstractArray
+            out.arrays[key] = hcat(arr...)
+        else
+            out.arrays[key] = arr
+        end
     end
     out
 end
@@ -115,12 +121,12 @@ function Base.setindex!(system::Cell, value, key::Symbol)
 end
 
 function Base.setindex!(system::Cell, value::AbstractArray, ::Colon, key::Symbol)
-    @assert size(value, ndims(value)) == length(cell)
+    @assert size(value, ndims(value)) == length(system)
     system.arrays[key] = value
 end
 
 function Base.haskey(system::Cell, x::Symbol)
-    x in (:bounding_box, :periodicity) || haskey(system.data, x)
+    x in (:bounding_box, :periodicity) || haskey(system.metadata, x)
 end
 
 function AB.bounding_box(cell::Cell{T}) where {T}

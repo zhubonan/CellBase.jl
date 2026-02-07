@@ -109,6 +109,6 @@ distance_between(s1, s2) = sqrt(distance_squared_between(s1, s2))
 
 "Unit vector from site 1 to shifted site 2"
 function unit_vector_between(s1::Site, s2::Site, shift)
-    vtmp .= s2.position .- s1.position .+ shift
-    vtmp ./ norm(vtmp)
+    v = s2.position .- s1.position .+ shift
+    v ./ norm(v)
 end

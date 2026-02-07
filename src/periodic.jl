@@ -22,15 +22,12 @@ function shift_vectors(
     a1, a2, a3, =
         SVector{3}(lattice[:, 1]), SVector{3}(lattice[:, 2]), SVector{3}(lattice[:, 3])
     nshifts = (s1max - s1min + 1) * (s2max - s2min + 1) * (s3max - s3min + 1)
-    shift_vectors = Matrix{Float64}(undef, 3, nshifts)
     shift_vectors = SVector{3,Float64}[]
 
-    itmp = 1
     for s3 = s3min:s3max
         for s2 = s2min:s2max
             for s1 = s1min:s1max
                 push!(shift_vectors, s1 .* a1 .+ s2 .* a2 .+ s3 .* a3)
-                itmp += 1
             end  # s1
         end  # s2
     end  # s3

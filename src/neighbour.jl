@@ -182,7 +182,7 @@ mutable struct NeighbourList{T,D}
     has_vectors::Bool
     rcut::T
     nmax_limit::Int
-    last_rebuild_positions::Vector{T}
+    last_rebuild_positions::Vector{SVector{D,T}}
     skin::T
 end
 
