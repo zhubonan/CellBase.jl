@@ -90,4 +90,6 @@ using Test
         @test snap.forces[1] ≈ -3.20036
     end
 
+    include("test_stru.jl")
+
 end
