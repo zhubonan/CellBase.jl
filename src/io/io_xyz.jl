@@ -7,7 +7,7 @@ Functions for writing XYZ files
 """
     Write snapshots to a xyz file
 """
-function write_xyz(fname, structures::Vector{Cell{T}}) where {T}
+function write_xyz(fname, structures::Vector{Cell{T,D}}) where {T,D}
     lines = String[]
     for structure in structures
         push_xyz!(lines, structure)

@@ -30,6 +30,13 @@ export make_supercell,
     repeat,
     rotate,
     rotate!
+export reduced_fu,
+    num_fu,
+    formula_and_factor,
+    array,
+    arraynames,
+    distance_matrix,
+    rattle!
 
 """
 A Cell represents a periodic structure in three-dimensional space.
