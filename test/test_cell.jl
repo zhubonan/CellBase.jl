@@ -13,6 +13,124 @@ import Spglib
     example_cell2 = Cell(Lattice(mat), [1, 2, 2, 1], rand(3, 4) .* 10 .- 5)
     example_cell2.arrays[:forces] = rand(3, 3, 4)
 
+    @testset "Rotation matrix utilities" begin
+        # Basic 90-degree rotation around z-axis
+        R = CellBase.rotation_matrix(90, [0, 0, 1])
+        @test R * [1, 0, 0] ≈ [0, 1, 0] atol = 1e-10
+
+        # 180-degree rotation flips the vector
+        R = CellBase.rotation_matrix(180, [0, 0, 1])
+        @test R * [1, 0, 0] ≈ [-1, 0, 0] atol = 1e-10
+
+        # Align vectors
+        R = CellBase.rotation_matrix_align([1, 0, 0], [0, 1, 0])
+        @test R * [1, 0, 0] ≈ [0, 1, 0] atol = 1e-10
+
+        # Axis parsing
+        @test CellBase.axis_from_string("x") ≈ [1, 0, 0]
+        @test CellBase.axis_from_string(:z) ≈ [0, 0, 1]
+        @test CellBase.axis_from_string("-y") ≈ [0, -1, 0]
+        @test_throws ArgumentError CellBase.axis_from_string("invalid")
+    end
+
+    @testset "make_supercell with matrix" begin
+        # 2x2x2 supercell
+        P = [2 0 0; 0 2 0; 0 0 2]
+        sc = make_supercell(example_cell, P)
+        @test natoms(sc) == natoms(example_cell) * 8
+        @test cellpar(sc)[1:3] ≈ cellpar(example_cell)[1:3] .* 2
+
+        # Shear transformation
+        P2 = [2 1 0; 0 1 0; 0 0 1]
+        sc2 = make_supercell(example_cell, P2)
+        @test natoms(sc2) == natoms(example_cell) * 2
+
+        # Arrays are preserved
+        sc3 = make_supercell(example_cell2, P)
+        @test haskey(sc3.arrays, :forces)
+        @test size(sc3.arrays[:forces], 3) == 32  # 4 atoms * 8
+
+        # Error handling
+        @test_throws ArgumentError make_supercell(example_cell, [2 0; 0 2])  # Wrong size
+        @test_throws ArgumentError make_supercell(example_cell, [2.5 0 0; 0 2 0; 0 0 2])  # Non-integer
+    end
+
+    @testset "repeat" begin
+        # All three calling conventions
+        @test natoms(repeat(example_cell, (2, 2, 2))) == natoms(example_cell) * 8
+        @test natoms(repeat(example_cell, 2, 2, 2)) == natoms(example_cell) * 8
+        @test natoms(repeat(example_cell, 2)) == natoms(example_cell) * 8
+
+        # Cell is properly scaled
+        rc = repeat(example_cell, 2, 2, 2)
+        @test cellpar(rc)[1:3] ≈ cellpar(example_cell)[1:3] .* 2
+    end
+
+    @testset "rotate" begin
+        lat = Lattice(5.0, 5.0, 5.0)
+        pos = [0.0 1.0 0.0 0.0; 0.0 0.0 1.0 0.0; 0.0 0.0 0.0 1.0]
+        test_cell = Cell(lat, [:H, :H, :H, :H], pos)
+
+        # Basic rotation - atom at origin stays fixed
+        rotated = rotate(test_cell, 90, "z")
+        @test positions(rotated)[:, 1] ≈ [0, 0, 0] atol = 1e-10
+        @test positions(rotated)[:, 2] ≈ [0, 1, 0] atol = 1e-10  # [1,0,0] -> [0,1,0]
+
+        # Different axis specifications work
+        @test positions(rotate(test_cell, 90, :z))[:, 2] ≈ [0, 1, 0] atol = 1e-10
+        @test positions(rotate(test_cell, 90, [0, 0, 1]))[:, 2] ≈ [0, 1, 0] atol = 1e-10
+
+        # Vector alignment
+        @test positions(rotate(test_cell, [1, 0, 0], [0, 1, 0]))[:, 2] ≈ [0, 1, 0] atol = 1e-10
+
+        # Rotating cell also
+        rotated_cell = rotate(test_cell, 90, "z", rotate_cell=true)
+        @test positions(rotated_cell)[:, 2] ≈ [0, 1, 0] atol = 1e-10
+        @test cellpar(rotated_cell)[1:3] ≈ cellpar(test_cell)[1:3]  # Orthorhombic stays same
+
+        # Different center specifications work (check no errors and atom count preserved)
+        @test natoms(rotate(test_cell, 180, "z", center=:center_of_positions)) == natoms(test_cell)
+        @test natoms(rotate(test_cell, 90, "z", center=:center_of_cell)) == natoms(test_cell)
+        @test natoms(rotate(test_cell, 180, "z", center=:center_of_mass)) == natoms(test_cell)
+        @test natoms(rotate(test_cell, 90, "z", center=(0.0, 0.0, 0.0))) == natoms(test_cell)
+
+        # In-place rotation
+        test_cell_copy = deepcopy(test_cell)
+        rotate!(test_cell_copy, 90, "z")
+        @test positions(test_cell_copy)[:, 2] ≈ [0, 1, 0] atol = 1e-10
+    end
+
+    @testset "Enhanced sort" begin
+        c = Cell(Lattice(mat), [:O, :H, :C, :H], rand(3, 4))
+        c.arrays[:forces] = rand(3, 4)
+
+        # Sort by symbol (default)
+        @test species(sort(c)) == [:C, :H, :H, :O]
+
+        # Sort by atomic number
+        @test species(sort(c, by=:number)) == [:H, :H, :C, :O]
+
+        # Sort by position
+        c_pos = Cell(Lattice(mat), [:O, :H], [1.0 0.0; 0.0 0.0; 0.0 0.0])
+        @test species(sort(c_pos, by=:position)) == [:H, :O]
+
+        # Sort by custom tags
+        @test species(sort(c, [2, 1, 4, 3])) == [:H, :O, :H, :C]
+
+        # In-place versions
+        c_copy = deepcopy(c)
+        sort!(c_copy, by=:number)
+        @test species(c_copy) == [:H, :H, :C, :O]
+
+        c_copy2 = deepcopy(c)
+        sort!(c_copy2, [2, 1, 4, 3])
+        @test species(c_copy2) == [:H, :O, :H, :C]
+
+        # Error handling
+        @test_throws ArgumentError sort(c, [1, 2])  # Wrong length
+        @test_throws ArgumentError sort(c, by=:invalid)
+    end
+
     @testset "Construct" begin
         @test begin
             Cell(Lattice(mat), [1, 1, 1, 1], rand(3, 4))
@@ -40,10 +158,10 @@ import Spglib
         @test volume(example_cell) > 0
         @test all(x -> x == :H, species(example_cell))
         @test all(x -> x == 1, atomic_numbers(example_cell))
-        ss = CellBase.make_supercell(example_cell, 2, 2, 2)
-        @test CellBase.natoms(ss) == CellBase.natoms(example_cell) * 8
-        @test CellBase.cellpar(ss)[1:3] == CellBase.cellpar(example_cell)[1:3] .* 2
-        @test CellBase.cellpar(ss)[4:6] == CellBase.cellpar(example_cell)[4:6]
+        ss = make_supercell(example_cell, 2, 2, 2)
+        @test natoms(ss) == natoms(example_cell) * 8
+        @test cellpar(ss)[1:3] == cellpar(example_cell)[1:3] .* 2
+        @test cellpar(ss)[4:6] == cellpar(example_cell)[4:6]
 
         @test get_cellmat(example_cell) !== cellmat(example_cell)
         @test get_positions(example_cell) !== positions(example_cell)
@@ -168,7 +286,7 @@ end
         @test num_neighbours(nl, 3) == 14
     end
 
-    # Test 'skin' 
+    # Test 'skin'
     # If used, the neighbour list is only rebuilt when the atoms move beyond this distnace
 
     for savevec in [false, true]
