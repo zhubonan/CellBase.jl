@@ -13,6 +13,8 @@ include("cell.jl")
 include("composition.jl")
 include("neighbour.jl")
 include("spg.jl")
+include("reference_data.jl")
+include("build.jl")
 include("io/io.jl")
 include("external/atomsbase.jl")
 
