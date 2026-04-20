@@ -6,6 +6,23 @@ This guide covers common operations on `Cell` objects, including creating superc
 using CellBase
 ```
 
+## Type Compatibility
+
+CellBase.jl v0.4+ uses `Cell{T,D}` where `D` is the number of dimensions. For 3D cells, you can use the `Cell3D{T}` alias for backward compatibility:
+
+```@example cells
+# Check cell type
+cell = bulk("Cu")
+println("Type: ", typeof(cell))
+println("Is Cell3D: ", cell isa CellBase.Cell3D{Float64})
+
+# Function with Cell3D annotation
+function process_cell(c::Cell3D{Float64})
+    return natoms(c)
+end
+println("Number of atoms: ", process_cell(cell))
+```
+
 ## Creating Supercells
 
 ### Simple Repetition

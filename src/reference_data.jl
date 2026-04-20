@@ -1,8 +1,10 @@
 #=
 Elemental Reference States Database
 
-Data from ASE (Atomic Simulation Environment), originally from:
-Ashcroft and Mermin, "Solid State Physics" (standard solid state physics reference)
+Data sourced from SMACT (Structure and Materials Analysis and Characterisation Tool).
+Original reference: Ashcroft and Mermin, "Solid State Physics"
+SMACT repository: https://github.com/SMTG-Bham/smart
+License: MIT License - https://github.com/SMTG-Bham/smart/blob/master/LICENSE
 
 Each entry is a Dict containing:
 - symmetry: Crystal structure type

@@ -1,7 +1,7 @@
 name = "CellBase"
 uuid = "01ff7365-e1e2-4ed5-aabe-f1c451dd6d4e"
 authors = ["Bonan Zhu <zhubonan@outlook.com>"]
-version = "0.4.0"
+version = "0.5.0"
 
 [deps]
 AtomsBase = "a963bdd2-2df7-4f54-a1ee-49d51e6be12a"

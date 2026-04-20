@@ -387,9 +387,11 @@ Build diamond structure (primitive cell).
 """
 function _build_diamond(symbols, a)
     T = Float64
-    # Diamond is like zincblende but with same element
+    # Diamond structure requires 2 atoms (same element)
+    # Note: For single elements, bulk() automatically replicates the symbol
     if length(symbols) != 2
-        throw(ArgumentError("Diamond structure requires 2 atoms (use repeat symbol like 'SiSi' or 'CC')"))
+        throw(ArgumentError("Diamond structure requires 2 atoms. " *
+                           "For single elements, use bulk(\"Si\", \"diamond\") and the symbol will be auto-replicated."))
     end
     
     b = a / 2

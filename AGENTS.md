@@ -1,4 +1,6 @@
-# AGENTS.md - Agentic Coding Guidelines for CellBase.jl
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -46,7 +48,7 @@ julia --project=docs/ docs/make.jl
 ### Code Formatting
 
 ```bash
-# Format code using JuliaFormatter (if installed)
+# Format code using JuliaFormatter
 julia --project -e 'using JuliaFormatter; format("src")'
 julia --project -e 'using JuliaFormatter; format("test")'
 ```
@@ -54,6 +56,78 @@ julia --project -e 'using JuliaFormatter; format("test")'
 Formatter configuration is in `.JuliaFormatter.toml`:
 - `ignore = ["scripts"]` - Skip scripts directory
 - `whitespace_in_kwargs = false` - No whitespace around keyword argument equals
+
+## Architecture Overview
+
+### Core Data Structures
+
+**Cell{T,D}** - The central data structure representing a periodic crystal structure:
+- `T`: Element type (usually Float64)
+- `D`: Number of dimensions (typically 3, but supports hyperdimensional)
+- Contains: `Lattice`, `symbols`, `positions`, `arrays`, `metadata`
+- Extends `AtomsBase.AbstractSystem{D}` for interoperability
+
+**Lattice{T}** - Represents periodic lattice vectors:
+- Stores both `matrix` (real space) and `rec` (reciprocal space, pre-computed)
+- Reciprocal lattice must be updated via `update_rec!()` after modifying matrix
+- Supports both 3D and N-dimensional lattices
+
+### File Organization
+
+```
+src/
+├── CellBase.jl          # Main module entry point
+├── cell.jl              # Core Cell struct and operations
+├── lattice.jl           # Lattice struct and MIC (Minimum Image Convention)
+├── build.jl             # bulk() constructor for common crystal structures
+├── composition.jl       # Chemical formula and composition utilities
+├── neighbour.jl         # Neighbor list computation
+├── spg.jl              # Spglib integration for symmetry
+├── minkowski.jl        # Minkowski reduction for safe MIC
+├── periodic.jl         # Periodic boundary operations
+├── site.jl             # Site abstraction
+├── mathutils.jl        # Mathematical utilities (rotations, etc.)
+├── reference_data.jl   # Elemental reference data
+├── io/                 # File I/O operations
+│   ├── io.jl          # I/O module and exports
+│   ├── io_cell.jl     # AIRSS .cell format
+│   ├── io_res.jl      # AIRSS .res format
+│   ├── io_xyz.jl      # XYZ format
+│   ├── io_poscar.jl   # VASP POSCAR format
+│   ├── io_dotcastep.jl # CASTEP .castep file format
+│   └── io_stru.jl     # ABACUS STRU format
+└── external/
+    └── atomsbase.jl    # AtomsBase interface implementation
+```
+
+### Key Architectural Patterns
+
+**Type Parameters:** Both `Cell` and `Lattice` are parametric types:
+- Use `Cell{T,D}` where `T` is element type and `D` is dimensions
+- Enables N-dimensional positions (hyperdimensional relaxation support)
+- StaticArrays (`SVector`, `SMatrix`) used for performance-critical paths
+
+**Minimum Image Convention (MIC):**
+- `mic(lattice, vectors)` computes minimum-image representation
+- Falls back to safe Minkowski-reduction based method for skewed cells
+- Always use MIC when computing distances/forces in periodic systems
+
+**Bulk Crystal Builder:**
+- `bulk("Cu")` - Auto-detects structure from reference database
+- `bulk("MgO", "rocksalt")` - Explicit structure type
+- Supports: sc, fcc, bcc, hcp, diamond, zincblende, wurtzite, rocksalt, etc.
+- Reference data from SMACT package in `reference_data.jl`
+
+**AtomsBase Integration:**
+- `Cell` implements `AtomsBase.AbstractSystem{D}`
+- Convert: `atomic_system(cell)` and `Cell(system)`
+- Enables interoperability with other AtomsBase-compatible packages
+
+**Supercell Generation:**
+- `make_supercell(cell, P)` - General transformation matrix
+- `repeat(cell, a, b, c)` - Diagonal supercell (shorthand)
+- Supports both "cell-major" and "atom-major" ordering
+- Handles additional arrays correctly
 
 ## Code Style Guidelines
 
@@ -168,15 +242,6 @@ using CellBase
 end
 ```
 
-### File Organization
-
-- `src/CellBase.jl` - Main module with includes
-- `src/<feature>.jl` - Individual feature files
-- `src/io/` - File I/O operations
-- `src/external/` - Third-party integrations
-- `test/test_<feature>.jl` - Corresponding test files
-- `test/runtests.jl` - Test entry point with includes
-
 ### Git Workflow
 
 - CI runs on pushes to `master` and `static` branches
@@ -190,10 +255,19 @@ end
 - `StaticArrays` - Performance-critical arrays
 - `PeriodicTable` - Element data
 - `LinearAlgebra` - Matrix operations
+- `Unitful` - Physical units (in AtomsBase integration)
+- `Parameters` - Type-based parameter handling
 
-## Notes
+## Important Implementation Notes
 
-- The package supports N-dimensional positions (not just 3D)
-- Uses StaticArrays (`SVector`, `SMatrix`) for performance
-- Follows AtomsBase interface for interoperability
-- Maintains compatibility with Julia 1.6+
+### Hyperdimensional Support
+The package supports N-dimensional positions (not just 3D) - this is used for hyperdimensional relaxation in structure prediction. When working with hyperdimensional cells, be aware that:
+- `size(positions, 1)` gives the dimension count
+- Some operations (like rotation) may only work correctly on 3D subsets
+- Use `remove_dimensions()` to extract 3D structure from hyperdimensional
+
+### Reciprocal Lattice Updates
+When modifying `lattice.matrix` directly, always call `update_rec!(lattice)` to recompute the reciprocal lattice. The `set_cellmat!()` function handles this automatically.
+
+### Array Data Storage
+Additional per-atom data (forces, charges, etc.) is stored in `cell.arrays::Dict{Symbol,Any}`. When cloning/clipping cells, ensure these arrays are handled correctly - they should be sliced along their last dimension (the atom dimension).

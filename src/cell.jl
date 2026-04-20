@@ -5,6 +5,7 @@ using Statistics
 import Base: sort, sort!, repeat
 
 export Cell,
+    Cell3D,
     nions,
     positions,
     species,
@@ -62,6 +63,22 @@ mutable struct Cell{T,D} <: AB.AbstractSystem{D}
 end
 
 _n_dimensions(::Cell{T,D}) where {T,D} = D
+
+"""
+    Cell3D{T}
+
+Type alias for 3D cells, providing backward compatibility with code that uses `Cell{T}` annotations.
+
+# Examples
+```julia
+# Old code (still works)
+cell3d::Cell3D{Float64} = bulk("Cu")
+
+# Equivalent to new type
+cell::Cell{Float64,3} = bulk("Cu")
+```
+"""
+const Cell3D{T} = Cell{T,3}
 
 """
     Cell(l::Lattice, symbols, positions) where T
@@ -1475,4 +1492,69 @@ function remove_dimensions(cell::Cell)
     out = Cell(lattice(cell), species(cell), pos)
     out.metadata = cell.metadata
     out
+end
+
+
+"""
+    versioninfo([io::IO=stdout])
+
+Print version and dependency information for CellBase.jl, useful for debugging and bug reports.
+
+# Examples
+```julia
+versioninfo()  # Print to stdout
+versioninfo(stderr)  # Print to stderr
+```
+"""
+function versioninfo(io::IO=stdout)
+    println(io, "CellBase.jl Version Information")
+    println(io, "================================")
+    println(io, "Julia Version: ", VERSION)
+    println(io, "CellBase.jl: ", _pkg_version(CellBase))
+    println(io, "")
+    println(io, "Key Dependencies:")
+    println(io, "  AtomsBase: ", _pkg_version(AB))
+    println(io, "  Spglib: ", _pkg_version(Spglib))
+    println(io, "  PeriodicTable: ", _pkg_version(PeriodicTable))
+    println(io, "  StaticArrays: ", _pkg_version(StaticArrays))
+    println(io, "")
+    println(io, "AtomsBase compatibility: ", AtomsBase_version_compat())
+    println(io, "Hyperdimensional support: enabled (D parameter in Cell{T,D})")
+    println(io, "Cell3D{T} alias: available for backward compatibility")
+    nothing
+end
+
+function _pkg_version(mod::Module)
+    try
+        path = pathof(mod)
+        if path === nothing
+            return "unknown"
+        end
+        pkg_dir = dirname(dirname(path))
+        proj_file = joinpath(pkg_dir, "Project.toml")
+        if isfile(proj_file)
+            for line in eachline(proj_file)
+                if startswith(line, "version = ")
+                    version_str = strip(line[11:end])
+                    return replace(version_str, "\"" => "")
+                end
+            end
+        end
+        return "unknown"
+    catch
+        return "unknown"
+    end
+end
+
+function AtomsBase_version_compat()
+    try
+        # Check if we're using AtomsBase 0.4 or later by checking for position method with idx parameter
+        if hasmethod(AB.position, (Cell{Float64,3}, Int))
+            return "0.4+ (indexable with idx)"
+        else
+            return "0.3 (legacy)"
+        end
+    catch
+        return "not available"
+    end
 end

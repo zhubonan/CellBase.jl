@@ -84,6 +84,21 @@ for i in 1:natoms(cell2)
 end
 ```
 
+!!! note "Type Parameters"
+    `Cell` has two type parameters: `Cell{T,D}` where `T` is the element type (typically `Float64`) and `D` is the number of dimensions. For 3D structures, this is automatically inferred as `Cell{Float64,3}`.
+
+    For backward compatibility with code using `Cell{T}` annotations, use the `Cell3D{T}` alias:
+
+    ```julia
+    # Old style (still works)
+    cell3d::Cell3D{Float64} = bulk("Cu")
+
+    # New style (more flexible)
+    cell::Cell{Float64,3} = bulk("Cu")
+    ```
+
+    Hyperdimensional structures (D > 3) are supported for advanced applications like hyperdimensional relaxation.
+
 ### Positions
 
 Positions are stored as a 3×N matrix where each column is an atom's Cartesian coordinates:
@@ -120,6 +135,60 @@ for i in 1:natoms(cell2)
     println("  Atom ", i, ": ", positions(cell2)[:, i])
 end
 ```
+
+## Migration Guide (v0.4 → v0.5)
+
+Version 0.5 introduced hyperdimensional support with a breaking change to the `Cell` type parameterization.
+
+### Breaking Change
+
+**Before (v0.4):** `Cell{T}` where `T` is the element type
+**After (v0.5+):** `Cell{T,D}` where `T` is the element type and `D` is the number of dimensions
+
+### How to Update Your Code
+
+1. **Type annotations:** If you have type annotations like `Cell{Float64}`, update to `Cell{Float64,3}` or use the `Cell3D{Float64}` alias
+
+2. **Function signatures:** Update function signatures that use `Cell`:
+   ```julia
+   # Old
+   function myfunc(cell::Cell{Float64})
+       # ...
+   end
+
+   # New (option 1 - explicit)
+   function myfunc(cell::Cell{Float64,3})
+       # ...
+   end
+
+   # New (option 2 - using alias)
+   function myfunc(cell::Cell3D{Float64})
+       # ...
+   end
+
+   # New (option 3 - more flexible)
+   function myfunc(cell::Cell{T,3}) where {T<:Real}
+       # ...
+   end
+   ```
+
+3. **Type constructors:** The `Cell(...)` constructor automatically infers the `D` parameter from the positions matrix, so most code creating cells doesn't need changes
+
+### Checking Your Version
+
+Use `versioninfo()` to see which version you have:
+
+```julia
+using CellBase
+versioninfo()
+```
+
+### Getting Help
+
+If you encounter issues after upgrading, please check:
+- The [AtomsBase compatibility](@ref) status in `versioninfo()` output
+- Your type annotations match the new `Cell{T,D}` format
+- All dependencies are up to date
 
 ## Next Steps
 

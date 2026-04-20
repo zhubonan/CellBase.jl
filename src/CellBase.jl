@@ -1,10 +1,9 @@
 module CellBase
 import AtomsBase
 const AB = AtomsBase
-greet() = print("Hello World!")
 
 # Re-export from submodules
-export bulk
+export bulk, versioninfo
 
 include("elemental_data.jl")
 include("mathutils.jl")
