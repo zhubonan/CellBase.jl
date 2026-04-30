@@ -45,6 +45,20 @@ import Spglib
         sc2 = make_supercell(example_cell, P2)
         @test natoms(sc2) == natoms(example_cell) * 2
 
+        # Positions match old make_supercell(a,b,c) for diagonal P
+        P_diag = [2 0 0; 0 3 0; 0 0 2]
+        sc_matrix = make_supercell(example_cell, P_diag)
+        sc_diag = make_supercell(example_cell, 2, 3, 2)
+        wrap!(sc_diag)  # old make_supercell does not wrap
+        new_pos = sort([get_scaled_positions(sc_matrix)[:, i] for i in 1:natoms(sc_matrix)])
+        old_pos = sort([get_scaled_positions(sc_diag)[:, i] for i in 1:natoms(sc_diag)])
+        @test all(new_pos[i] ≈ old_pos[i] for i in 1:length(new_pos))
+
+        # Positions match with order="atom-major"
+        sc_am = make_supercell(example_cell, P_diag, order="atom-major")
+        new_pos_am = sort([get_scaled_positions(sc_am)[:, i] for i in 1:natoms(sc_am)])
+        @test all(new_pos_am[i] ≈ old_pos[i] for i in 1:length(new_pos_am))
+
         # Arrays are preserved
         sc3 = make_supercell(example_cell2, P)
         @test haskey(sc3.arrays, :forces)

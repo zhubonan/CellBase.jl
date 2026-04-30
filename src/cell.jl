@@ -892,7 +892,7 @@ function make_supercell(cell::Cell{T,D}, P::AbstractMatrix{<:Real};
     N = size(lattice_points_frac, 2)
 
     # Convert fractional shifts to Cartesian
-    lattice_shifts = old_cell * lattice_points_frac  # 3 × N matrix
+    lattice_shifts = old_cell * P_int * lattice_points_frac  # 3 × N matrix
 
     # Get current positions and species
     current_pos = positions(cell)
