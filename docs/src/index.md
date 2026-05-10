@@ -13,6 +13,7 @@ CellBase.jl provides:
 - **Symmetry analysis**: Integration with Spglib for space group operations
 - **Supercell generation**: Create supercells from primitive cells
 - **Neighbor lists**: Compute neighbor lists and distances
+- **Hyperdimensional cells**: Support auxiliary non-periodic coordinates for advanced workflows
 
 The target application is for small and periodic cells, with emphasis on both ease of use and performance.
 
@@ -40,9 +41,10 @@ Installation, basic concepts, and your first steps with CellBase.jl.
 
 ### [Working with Cells](@ref working-with-cells)
 Learn how to manipulate Cell objects: supercells, sorting atoms, rotations, and more.
+This guide also covers the current hyper-cell model and its `3 x N` scaled-coordinate API.
 
 ### [File I/O](@ref file-io)
-Reading and writing structure files in various formats (RES, POSCAR, XYZ, STRU, CASTEP).
+Reading and writing structure files in various formats (RES, POSCAR, XYZ/ExtXYZ, STRU, CASTEP).
 
 ### [Building Structures](@ref building-structures)
 Create common crystal structures using the `bulk` function: FCC, BCC, HCP, diamond, rocksalt, and more.
@@ -57,7 +59,7 @@ Symmetry analysis using Spglib integration: finding space groups, standardizing 
 ```@autodocs
 Modules = [CellBase]
 Order = [:type]
-Pages = ["lattice.jl", "cell.jl"]
+Pages = ["lattice.jl", "cell.jl", "site.jl", "neighbour.jl", "composition.jl"]
 ```
 
 ### Lattice Functions
@@ -76,6 +78,22 @@ Order = [:function]
 Pages = ["cell.jl"]
 ```
 
+### Site Functions
+
+```@autodocs
+Modules = [CellBase]
+Order = [:function]
+Pages = ["site.jl"]
+```
+
+### File I/O Types
+
+```@autodocs
+Modules = [CellBase.SheapIO, CellBase.DotCastep]
+Order = [:type]
+Pages = ["io/io_sheap.jl", "io/io_dotcastep.jl"]
+```
+
 ### Building Structures
 
 ```@autodocs
@@ -86,10 +104,20 @@ Pages = ["build.jl"]
 
 ### File I/O
 
-```@autodocs
-Modules = [CellBase, CellBase.CellIO, CellBase.DotCastep, CellBase.SheapIO]
-Order = [:function]
-Pages = ["io/io_cell.jl", "io/io_res.jl", "io/io_xyz.jl", "io/io_dotcastep.jl", "io/io_sheap.jl", "io/io_stru.jl", "io/io_poscar.jl"]
+```@docs
+CellBase.read_cell
+CellBase.write_cell
+CellBase.read_res
+CellBase.write_res
+CellBase.read_poscar
+CellBase.write_poscar
+CellBase.read_xyz
+CellBase.write_xyz
+CellBase.push_xyz!
+CellBase.read_stru
+CellBase.write_stru
+CellBase.DotCastep.read_castep
+CellBase.SheapIO.run_sheap
 ```
 
 ### Space Group Operations

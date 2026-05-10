@@ -10,25 +10,44 @@ const _EXTXYZ_RESERVED_ARRAY_KEYS = Set(["species", "pos"])
 ## XYZ files
 
 """
-    Write snapshots to a xyz file
+    write_xyz(fname, structures)
+
+Write one or more structures to XYZ / ExtXYZ format using the `ExtXYZ.jl`
+backend.
+
+For hyper cells, the first 3 Cartesian coordinates are written as `pos` and any
+auxiliary coordinates are written as per-atom ExtXYZ properties named
+`extra_dim_1`, `extra_dim_2`, and so on.
 """
 function write_xyz(fname, structures::Vector{Cell{T,D}}) where {T,D}
     ExtXYZ.write_frames(fname, _cell_to_extxyz_frame.(structures))
 end
 
-"""Append a single frame to an XYZ file path."""
+"""
+    push_xyz!(fname::AbstractString, structure::Cell; append=true)
+
+Append a single frame to an XYZ / ExtXYZ file.
+"""
 function push_xyz!(fname::AbstractString, structure::Cell; append=true)
     ExtXYZ.write_frames(fname, [_cell_to_extxyz_frame(structure)]; append=append)
     return fname
 end
 
-"""Write a single frame to an open XYZ stream."""
+"""
+    push_xyz!(io::IOStream, structure::Cell)
+
+Write a single XYZ / ExtXYZ frame to an open stream.
+"""
 function push_xyz!(io::IOStream, structure::Cell)
     ExtXYZ.write_frames(io, [_cell_to_extxyz_frame(structure)])
     return io
 end
 
-"""Deprecated compatibility shim for the former line-buffer API."""
+"""
+    push_xyz!(lines::AbstractVector{<:AbstractString}, structure::Cell)
+
+Deprecated compatibility shim for the former line-buffer API.
+"""
 function push_xyz!(lines::AbstractVector{<:AbstractString}, structure::Cell)
     Base.depwarn(
         "push_xyz!(lines::AbstractVector{<:AbstractString}, structure) is deprecated; use push_xyz!(io::IOStream, structure) or push_xyz!(path::AbstractString, structure) instead.",
@@ -109,7 +128,13 @@ function _extxyz_info_value(value)
 end
 
 """
-Read XYZ file
+    read_xyz(io::IO; extra_col_map=nothing)
+    read_xyz(fname::AbstractString; extra_col_map=nothing)
+
+Read one or more XYZ / ExtXYZ frames and return them as `Vector{Cell}`.
+
+When `extra_dim_*` ExtXYZ properties are present, they are reconstructed into
+auxiliary coordinate rows `positions(cell)[4:end, :]`.
 """
 function read_xyz(io::IO; extra_col_map=nothing)
     _extxyz_frames_to_cells(ExtXYZ.read_frames(io); extra_col_map)

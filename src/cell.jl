@@ -570,7 +570,11 @@ end
 """
     get_fraction_positions(cell::Cell)
 
-Return fractional positions of the cell.
+Return fractional positions of the periodic subspace.
+
+For ordinary 3D cells this returns a `3 x N` matrix of fractional coordinates.
+For hyper cells (`D > 3`), this still returns `3 x N` and only covers the first
+three periodic Cartesian coordinates.
 """
 function get_scaled_positions(cell::Cell)
     rec_cellmat(lattice(cell)) * @view positions(cell)[1:3, :]
@@ -579,7 +583,10 @@ end
 """
     set_scaled_positions!(cell::Cell, scaled::Matrix)
 
-Set scaled positions for a cell.
+Set fractional coordinates for the periodic subspace.
+
+`scaled` must have shape `3 x N`. For hyper cells, only the first three
+periodic Cartesian coordinates are updated; auxiliary coordinates are preserved.
 """
 function set_scaled_positions!(cell::Cell, scaled::Matrix)
     size(scaled, 1) == 3 ||

@@ -23,6 +23,28 @@ end
 println("Number of atoms: ", process_cell(cell))
 ```
 
+## Hyperdimensional Cells
+
+CellBase supports cells with `D > 3`, but the current model is intentionally restricted:
+
+- the lattice is always `3 x 3`
+- the first 3 coordinate rows are periodic Cartesian coordinates
+- rows `4:end` are auxiliary non-periodic coordinates
+- `periodicity(cell)` returns `(true, true, true, false, ...)`
+- `get_scaled_positions(cell)` and `set_scaled_positions!(cell, scaled)` use the periodic `3 x N` subspace only
+
+```@example cells
+base = Cell(Lattice(5.0, 5.0, 5.0), [:H, :He], [0.0 2.5; 0.0 2.5; 0.0 2.5])
+hyper = CellBase.add_dimensions(base, 1)
+
+println("Type: ", typeof(hyper))
+println("Position size: ", size(positions(hyper)))
+println("Scaled size: ", size(get_scaled_positions(hyper)))
+println("Periodicity: ", periodicity(hyper))
+```
+
+Operations such as `wrap!`, `set_cellmat!`, `repeat`, and neighbour-list construction preserve auxiliary coordinates while treating them as non-periodic.
+
 ## Creating Supercells
 
 ### Simple Repetition

@@ -341,6 +341,11 @@ end # Module cell IO
 
 using .CellIO
 
+"""
+    read_cell(fname)
+
+Read a CASTEP `.cell` file and return a `Cell`.
+"""
 function read_cell(fname)
     cellmat, posmat, species = CellIO.read_cell(fname)
     lattice = Lattice(cellmat)

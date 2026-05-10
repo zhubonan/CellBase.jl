@@ -4,8 +4,8 @@ Code for input/output
 Format:
 
 - SHELX: read and write in AIRSS style
-- CELL: read only
-- XYZ: write only
+- CELL: read and write
+- XYZ: read and write via ExtXYZ.jl
 - .castep: read only, including energies and forces
 - STRU: read and write ABACUS STRU format
 =#

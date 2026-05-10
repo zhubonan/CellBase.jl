@@ -6,6 +6,17 @@
 Base code and routines for building/manipulating periodic crystal structures.
 Hopefully useful for more complex projects with specific applications.
 
+## Current Highlights
+
+- `Cell{T,D}` supports auxiliary dimensions for hyperdimensional workflows.
+- The current hyper-cell model uses:
+  - a `3 x 3` periodic lattice
+  - the first 3 position rows as periodic Cartesian coordinates
+  - rows `4:end` as auxiliary non-periodic coordinates
+- `get_scaled_positions(cell)` and `set_scaled_positions!(cell, scaled)` operate on the periodic `3 x N` subspace.
+- XYZ I/O uses `ExtXYZ.jl` and round-trips auxiliary coordinates through `extra_dim_*` properties.
+- 3D file formats such as POSCAR, RES, STRU, and `.cell` write only the first 3 Cartesian coordinates and warn when auxiliary dimensions are dropped.
+
 
 ## Goal
 

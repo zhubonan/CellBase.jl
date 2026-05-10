@@ -13,11 +13,11 @@ CellBase.jl supports the following file formats:
 | Format | Extension | Read | Write | Notes |
 |--------|-----------|------|-------|-------|
 | SHELX RES | `.res` | Yes | Yes | AIRSS-style output |
-| VASP POSCAR | `POSCAR` | No | Yes | Write-only |
-| XYZ | `.xyz` | No | Yes | Write-only |
+| VASP POSCAR | `POSCAR` | Yes | Yes | VASP POSCAR / CONTCAR style |
+| XYZ / ExtXYZ | `.xyz` | Yes | Yes | Uses `ExtXYZ.jl` backend |
 | CASTEP | `.castep` | Yes | No | Includes energies and forces |
 | ABACUS STRU | `STRU` | Yes | Yes | ABACUS input format |
-| CELL | `.cell` | Yes | No | CASTEP cell files |
+| CELL | `.cell` | Yes | Yes | CASTEP cell files |
 
 ## Writing Structures
 
@@ -45,15 +45,40 @@ println(content)
 ### XYZ Format
 
 ```@example fileio
-# Write to XYZ format - save multiple frames
+# Write to XYZ / ExtXYZ format - save multiple frames
 frames = Cell{Float64, 3}[cell, cell]  # Two identical frames
 write_xyz("structure.xyz", frames)
 
-# Read it back
-content = read("structure.xyz", String)
-println("XYZ content:")
-println(content)
+# Read it back through CellBase
+xyz_cells = CellBase.read_xyz("structure.xyz")
+println("Number of frames: ", length(xyz_cells))
+println("First frame atoms: ", natoms(xyz_cells[1]))
+println("Raw XYZ content:")
+println(read("structure.xyz", String))
 ```
+
+For hyper cells, auxiliary coordinates are written as ExtXYZ per-atom properties named `extra_dim_1`, `extra_dim_2`, and so on. `CellBase.read_xyz` reconstructs these properties back into `positions(cell)[4:end, :]`.
+
+```@example fileio
+hyper = CellBase.add_dimensions(cell, 1)
+write_xyz("hyper.xyz", [hyper])
+roundtrip = only(CellBase.read_xyz("hyper.xyz"))
+
+println("Roundtrip position size: ", size(positions(roundtrip)))
+println("Auxiliary coordinates preserved: ", positions(roundtrip)[4, :] == positions(hyper)[4, :])
+```
+
+Low-level XYZ writing now prefers file or stream targets:
+
+```@example fileio
+mktemp() do path, io
+    CellBase.push_xyz!(io, cell)
+    seekstart(io)
+    println(read(io, String))
+end
+```
+
+The old `push_xyz!(lines::Vector{String}, cell)` form is deprecated.
 
 ### SHELX RES Format
 
@@ -175,8 +200,11 @@ end
 ## Best Practices
 
 1. **Always check format support**: Some formats are read-only or write-only
-2. **Handle missing data**: Files may not contain all optional information  
-3. **Validate structures**: After creating, check that the structure is reasonable:
+2. **Handle missing data**: Files may not contain all optional information
+3. **Know which formats are lossy for hyper cells**:
+   - XYZ / ExtXYZ preserves auxiliary dimensions
+   - POSCAR, RES, STRU, and `.cell` write only the first 3 Cartesian coordinates and emit a warning
+4. **Validate structures**: After creating, check that the structure is reasonable:
 
 ```@example fileio
 # Validation example

@@ -97,11 +97,16 @@ end
     cell::Cell{Float64,3} = bulk("Cu")
     ```
 
-    Hyperdimensional structures (D > 3) are supported for advanced applications like hyperdimensional relaxation.
+    Hyperdimensional structures (`D > 3`) are supported for advanced workflows such as hyperdimensional relaxation. The current implementation uses a `3 x 3` lattice and interprets:
+
+    - rows `1:3` of `positions(cell)` as periodic Cartesian coordinates
+    - rows `4:end` as auxiliary non-periodic coordinates
+
+    `periodicity(cell)` returns an `NTuple{D,Bool}` and currently follows the pattern `(true, true, true, false, ...)`.
 
 ### Positions
 
-Positions are stored as a 3×N matrix where each column is an atom's Cartesian coordinates:
+Positions are stored as a `D x N` matrix where each column is an atom's coordinates. For ordinary 3D structures, `D == 3`:
 
 ```@example quickstart
 # Show positions for each atom
@@ -116,7 +121,7 @@ You can also work with scaled (fractional) positions:
 ```@example quickstart
 # Get scaled positions
 scaled = get_scaled_positions(cell2)
-println("Scaled positions (fractional):")
+println("Scaled positions (fractional, periodic subspace):")
 for i in 1:natoms(cell2)
     println("  Atom ", i, ": ", scaled[:, i])
 end
@@ -134,6 +139,16 @@ println("\nWrapped positions:")
 for i in 1:natoms(cell2)
     println("  Atom ", i, ": ", positions(cell2)[:, i])
 end
+```
+
+For hyper cells (`D > 3`), scaled coordinates always live in the periodic `3 x N` subspace. Auxiliary coordinates are preserved in Cartesian form and are not represented in `get_scaled_positions(cell)`.
+
+```@example quickstart
+hyper = CellBase.add_dimensions(cell2, 1)
+println("Hyper cell type: ", typeof(hyper))
+println("Position matrix size: ", size(positions(hyper)))
+println("Scaled position size: ", size(get_scaled_positions(hyper)))
+println("Periodicity: ", periodicity(hyper))
 ```
 
 ## Migration Guide (v0.4 → v0.5)
@@ -186,7 +201,7 @@ versioninfo()
 ### Getting Help
 
 If you encounter issues after upgrading, please check:
-- The [AtomsBase compatibility](@ref) status in `versioninfo()` output
+- The AtomsBase compatibility status in `versioninfo()` output
 - Your type annotations match the new `Cell{T,D}` format
 - All dependencies are up to date
 

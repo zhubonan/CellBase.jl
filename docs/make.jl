@@ -5,6 +5,7 @@ makedocs(
     sitename="CellBase.jl",
     format=Documenter.HTML(),
     modules=[CellBase],
+    checkdocs=:exports,
     pages=[
         "Home" => "index.md",
         "Getting Started" => "getting_started.md",
