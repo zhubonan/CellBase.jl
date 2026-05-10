@@ -351,5 +351,6 @@ end
     write_cell(fname, cell::Cell)
 """
 function write_cell(fname, cell::Cell)
-    CellIO.write_cell(fname, cellmat(cell), positions(cell), species(cell))
+    _warn_dropped_auxiliary_dimensions(cell, "write_cell")
+    CellIO.write_cell(fname, cellmat(cell), @view(positions(cell)[1:3, :]), species(cell))
 end

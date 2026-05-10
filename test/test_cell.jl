@@ -440,3 +440,107 @@ end
     @test cellmat(converted) == cellmat(cell)
     @test CellBase.array(converted, :forces) == CellBase.array(cell, :forces)
 end
+
+@testset "Hyperdimensional Cells" begin
+    pos = [
+        1.0 11.0
+        2.0 -2.0
+        3.0 13.0
+        0.25 -0.5
+    ]
+    hyper = Cell(Lattice(10.0, 10.0, 10.0), [:H, :He], pos)
+    hyper.metadata[:tag] = "hyper"
+    hyper.arrays[:weights] = reshape([1.0, 2.0], 1, :)
+
+    @test periodicity(hyper) == (true, true, true, false)
+    @test get_scaled_positions(hyper) ≈ [
+        0.1 1.1
+        0.2 -0.2
+        0.3 1.3
+    ]
+
+    scaled = [
+        0.2 0.4
+        0.5 0.6
+        0.7 0.8
+    ]
+    set_scaled_positions!(hyper, scaled)
+    @test positions(hyper)[1:3, :] ≈ [
+        2.0 4.0
+        5.0 6.0
+        7.0 8.0
+    ]
+    @test positions(hyper)[4, :] == [0.25, -0.5]
+    @test_throws ArgumentError set_scaled_positions!(hyper, vcat(scaled, reshape([9.9, 9.9], 1, :)))
+
+    hyper2 = Cell(
+        Lattice(10.0, 10.0, 10.0),
+        [:H, :He],
+        [
+            1.0 11.0
+            2.0 -2.0
+            3.0 13.0
+            0.25 -0.5
+        ],
+    )
+    old_scaled = get_scaled_positions(hyper2)
+    set_cellmat!(
+        hyper2,
+        [
+            20.0 0.0 0.0
+            0.0 5.0 0.0
+            0.0 0.0 2.0
+        ];
+        scale_positions=true,
+    )
+    @test positions(hyper2)[1:3, :] ≈ cellmat(hyper2) * old_scaled
+    @test positions(hyper2)[4, :] == [0.25, -0.5]
+
+    wrap!(hyper2)
+    @test all(0 .<= positions(hyper2)[1:3, :] .< [20.0; 5.0; 2.0])
+    @test positions(hyper2)[4, :] == [0.25, -0.5]
+
+    hyper_sc = make_supercell(hyper, 2, 1, 1)
+    @test size(positions(hyper_sc)) == (4, 4)
+    @test positions(hyper_sc)[4, :] == [0.25, -0.5, 0.25, -0.5]
+    @test hyper_sc.metadata[:tag] == "hyper"
+    @test hyper_sc.arrays[:weights] == reshape([1.0, 2.0, 1.0, 2.0], 1, :)
+
+    hyper_sc_matrix = make_supercell(hyper, [2 0 0; 0 1 0; 0 0 1]; wrap=false)
+    @test positions(hyper_sc_matrix) == positions(hyper_sc)
+    @test hyper_sc_matrix.arrays[:weights] == hyper_sc.arrays[:weights]
+    @test hyper_sc_matrix.metadata[:tag] == hyper_sc.metadata[:tag]
+
+    hyper_nl = Cell(
+        Lattice(10.0, 10.0, 10.0),
+        [:H, :He],
+        [
+            0.0 9.5
+            0.0 0.0
+            0.0 0.0
+            0.0 0.2
+        ],
+    )
+    @test distance_matrix(hyper_nl)[1, 2] ≈ sqrt(0.5^2 + 0.2^2)
+    nl4 = NeighbourList(hyper_nl, 1.0, 10)
+    @test num_neighbours(nl4, 1) == 1
+    neigh = first(collect(eachneighbour(nl4, 1)))
+    @test neigh[1] == 2
+    @test neigh[3] ≈ sqrt(0.5^2 + 0.2^2)
+
+    hyper_far = Cell(
+        Lattice(10.0, 10.0, 10.0),
+        [:H, :He],
+        [
+            0.0 9.5
+            0.0 0.0
+            0.0 0.0
+            0.0 2.0
+        ],
+    )
+    nl4_far = NeighbourList(hyper_far, 1.0, 10)
+    @test num_neighbours(nl4_far, 1) == 0
+
+    @test_throws ArgumentError CellBase.AtomsBase.atomic_system(hyper)
+    @test_throws ArgumentError CellBase.SCell(hyper)
+end

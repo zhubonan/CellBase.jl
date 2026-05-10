@@ -8,6 +8,7 @@ export Cell,
     Cell3D,
     nions,
     positions,
+    periodicity,
     species,
     atomic_numbers,
     masses,
@@ -60,9 +61,57 @@ mutable struct Cell{T,D} <: AB.AbstractSystem{D}
     positions::Matrix{T}
     arrays::Dict{Symbol,Any}        # Any additional arrays
     metadata::Dict{Symbol,Any}
+    periodicity::NTuple{D,Bool}
 end
 
 _n_dimensions(::Cell{T,D}) where {T,D} = D
+
+_default_periodicity(::Val{D}) where {D} = ntuple(i -> i <= 3, D)
+
+function _normalize_periodicity(periodicity, ::Val{D}) where {D}
+    normalized =
+        isnothing(periodicity) ? _default_periodicity(Val(D)) : Tuple(Bool.(collect(periodicity)))
+    length(normalized) == D ||
+        throw(ArgumentError("Periodicity must have length $D, got $(length(normalized))"))
+    normalized
+end
+
+function _validate_periodicity(periodicity::NTuple{D,Bool}) where {D}
+    D >= 3 || throw(ArgumentError("Cell positions must have at least 3 Cartesian dimensions"))
+    expected = _default_periodicity(Val(D))
+    periodicity == expected ||
+        throw(
+            ArgumentError(
+                "Current CellBase support requires the first 3 dimensions to be periodic and any extra dimensions to be non-periodic",
+            ),
+        )
+end
+
+function _validate_cell_shape(l::Lattice, positions::Matrix, periodicity)
+    size(cellmat(l)) == (3, 3) ||
+        throw(ArgumentError("Current CellBase support requires a 3x3 lattice matrix"))
+    size(positions, 1) == length(periodicity) ||
+        throw(
+            ArgumentError(
+                "Position dimension $(size(positions, 1)) does not match periodicity length $(length(periodicity))",
+            ),
+        )
+end
+
+function _require_three_cartesian_dimensions(cell::Cell, context::AbstractString)
+    size(positions(cell), 1) == 3 ||
+        throw(
+            ArgumentError(
+                "$context only supports cells with 3 Cartesian coordinates per atom",
+            ),
+        )
+end
+
+function _warn_dropped_auxiliary_dimensions(cell::Cell, context::AbstractString)
+    if size(positions(cell), 1) > 3
+        @warn "$context drops auxiliary dimensions beyond the first 3 Cartesian coordinates"
+    end
+end
 
 """
     Cell3D{T}
@@ -85,15 +134,30 @@ const Cell3D{T} = Cell{T,3}
 
 Construct a Cell type from arrays
 """
-function Cell(l::Lattice, symbols::Vector{Symbol}, positions::Matrix)
-    arrays = Dict{Symbol,Any}()
+function Cell(
+    l::Lattice,
+    symbols::Vector{Symbol},
+    positions::Matrix,
+    arrays::Dict{Symbol,Any},
+    metadata::Dict{Symbol,Any};
+    periodicity=nothing,
+)
     @assert length(symbols) == size(positions, 2)
-    Cell{eltype(positions),size(positions, 1)}(
+    D = size(positions, 1)
+    periodicity_tuple = _normalize_periodicity(periodicity, Val(D))
+    _validate_periodicity(periodicity_tuple)
+    _validate_cell_shape(l, positions, periodicity_tuple)
+    Cell{eltype(positions),D}(l, symbols, positions, arrays, metadata, periodicity_tuple)
+end
+
+function Cell(l::Lattice, symbols::Vector{Symbol}, positions::Matrix; periodicity=nothing)
+    Cell(
         l,
         symbols,
         positions,
-        arrays,
         Dict{Symbol,Any}(),
+        Dict{Symbol,Any}();
+        periodicity,
     )
 end
 
@@ -102,10 +166,10 @@ end
 
 Constructure the Cell type from lattice, positions and numbers
 """
-function Cell(lat::Lattice, numbers::Vector{T}, positions::Matrix) where {T<:Real}
+function Cell(lat::Lattice, numbers::Vector{T}, positions::Matrix; periodicity=nothing) where {T<:Real}
     species = [Symbol(elements[i].symbol) for i in numbers]
     @assert length(numbers) == size(positions, 2)
-    Cell(lat, species, positions)
+    Cell(lat, species, positions; periodicity)
 end
 
 
@@ -114,13 +178,13 @@ end
 
 Constructure the Cell type from lattice, positions and numbers
 """
-function Cell(lat::Lattice, species_id, positions::Vector)
+function Cell(lat::Lattice, species_id, positions::Vector; periodicity=nothing)
     @assert length(species_id) == length(positions)
     posmat = zeros(length(positions[1]), length(positions))
     for (i, vec) in enumerate(positions)
         posmat[:, i] = vec
     end
-    Cell(lat, species_id, posmat)
+    Cell(lat, species_id, posmat; periodicity)
 end
 
 
@@ -137,7 +201,7 @@ function clip(cell::Cell{T,N}, mask::AbstractVector) where {T,N}
     for (key, array) in pairs(cell.arrays)
         new_array[key] = selectdim(array, ndims(array), mask)
     end
-    Cell{T,N}(lattice(cell), new_symbols, new_pos, new_array, cell.metadata)
+    Cell(lattice(cell), new_symbols, new_pos, new_array, cell.metadata; periodicity=periodicity(cell))
 end
 
 Base.getindex(cell::Cell, i::AbstractVector) = clip(cell, i)
@@ -313,6 +377,8 @@ natoms
 Return positions (cartesian coordinates) of the atoms in a structure.
 """
 positions(cell::Cell) = cell.positions
+
+periodicity(cell::Cell) = cell.periodicity
 
 
 """
@@ -507,7 +573,7 @@ end
 Return fractional positions of the cell.
 """
 function get_scaled_positions(cell::Cell)
-    rec_cellmat(lattice(cell)) * positions(cell)
+    rec_cellmat(lattice(cell)) * @view positions(cell)[1:3, :]
 end
 
 """
@@ -516,7 +582,15 @@ end
 Set scaled positions for a cell.
 """
 function set_scaled_positions!(cell::Cell, scaled::Matrix)
-    cell.positions .= cellmat(cell) * scaled
+    size(scaled, 1) == 3 ||
+        throw(ArgumentError("Scaled positions must have exactly 3 rows, got $(size(scaled, 1))"))
+    size(scaled, 2) == natoms(cell) ||
+        throw(
+            ArgumentError(
+                "Scaled positions must have $(natoms(cell)) columns, got $(size(scaled, 2))",
+            ),
+        )
+    @view(cell.positions[1:3, :]) .= cellmat(cell) * @view(scaled[1:3, :])
 end
 
 """
@@ -541,7 +615,13 @@ function wrap!(vec::AbstractVector, l::Lattice)
     vec .= l.matrix * frac
 end
 
-wrap!(vec::AbstractVector, c::Cell) = wrap!(vec, lattice(c))
+function wrap!(vec::AbstractVector, c::Cell)
+    length(vec) >= 3 || throw(ArgumentError("Vector must have at least 3 components"))
+    frac = rec_cellmat(lattice(c)) * @view(vec[1:3])
+    frac .-= floor.(frac)
+    vec[1:3] .= cellmat(c) * frac
+    vec
+end
 
 
 """
@@ -698,17 +778,26 @@ function _distance_matrix_mic(cell::Cell)
     # Compute the naive pair-wise vectors
     nn = nions(cell)
     vecs = zeros(3, nn * nn)
+    extra_vecs = max(size(positions(cell), 1) - 3, 0) > 0 ? zeros(size(positions(cell), 1) - 3, nn * nn) : nothing
     pos = sposarray(cell)
     dmat = zeros(nn, nn)
     ivec = 0
     for i = 1:nn
         for j = i+1:nn
             ivec += 1
-            vecs[:, ivec] .= pos[j] .- pos[i]
+            vecs[:, ivec] .= pos[j][1:3] .- pos[i][1:3]
+            if !isnothing(extra_vecs)
+                extra_vecs[:, ivec] .= pos[j][4:end] .- pos[i][4:end]
+            end
         end
     end
     # Apply minimum image conventions
-    _, dmic = mic(lattice(cell), @view(vecs[:, 1:ivec]))
+    vmic, dmic = mic(lattice(cell), @view(vecs[:, 1:ivec]))
+    if !isnothing(extra_vecs)
+        for idx = 1:ivec
+            dmic[idx] = sqrt(dmic[idx]^2 + sum(abs2, @view extra_vecs[:, idx]))
+        end
+    end
     # Unpack computed distances
     ivec = 0
     for i = 1:nn
@@ -804,27 +893,7 @@ function make_supercell(structure::Cell, a, b, c)
         0 b 0
         0 0 c
     ]
-    old_cell = cellmat(lattice(structure))
-    new_cell = old_cell * tmat
-
-    # Compute the shift vectors
-    svec = shift_vectors(old_cell, a - 1, b - 1, c - 1, 0, 0, 0)
-    nshifts = length(svec)
-
-    current_pos = positions(structure)
-    ns = natoms(structure)
-    # New positions
-    new_pos = zeros(3, nshifts * ns)
-    for (i, shift) in enumerate(svec)
-        for j = 1:ns
-            idx = j + (i - 1) * ns  # New index
-            for n in axes(new_pos, 1)
-                @inbounds new_pos[n, idx] = current_pos[n, j] + shift[n]
-            end
-        end
-    end
-    new_spec = repeat(species(structure), nshifts)
-    Cell(Lattice(new_cell), new_spec, new_pos)
+    make_supercell(structure, tmat; wrap=false)
 end
 
 
@@ -901,22 +970,28 @@ function make_supercell(cell::Cell{T,D}, P::AbstractMatrix{<:Real};
     # Create new positions based on order parameter
     if order == "cell-major"
         # [atom1_shift1, atom2_shift1, ..., atom1_shift2, atom2_shift2, ...]
-        new_pos = zeros(T, 3, N * ns)
+        new_pos = zeros(T, D, N * ns)
         for i = 1:N
             shift = lattice_shifts[:, i]
             for j = 1:ns
                 idx = j + (i - 1) * ns
-                new_pos[:, idx] .= current_pos[:, j] .+ shift
+                new_pos[1:3, idx] .= current_pos[1:3, j] .+ shift
+                if D > 3
+                    new_pos[4:end, idx] .= current_pos[4:end, j]
+                end
             end
         end
     elseif order == "atom-major"
         # [atom1_shift1, atom1_shift2, ..., atom2_shift1, atom2_shift2, ...]
-        new_pos = zeros(T, 3, N * ns)
+        new_pos = zeros(T, D, N * ns)
         for j = 1:ns
             for i = 1:N
                 idx = i + (j - 1) * N
                 shift = lattice_shifts[:, i]
-                new_pos[:, idx] .= current_pos[:, j] .+ shift
+                new_pos[1:3, idx] .= current_pos[1:3, j] .+ shift
+                if D > 3
+                    new_pos[4:end, idx] .= current_pos[4:end, j]
+                end
             end
         end
     else
@@ -1197,10 +1272,10 @@ function _get_rotation_center(cell::Cell{T,D}, center::Union{NTuple{3,<:Real},Sy
         if center in (:center_of_mass, :com)
             # Center of mass
             m = masses(cell)
-            return vec(sum(positions(cell) .* reshape(m, 1, :), dims=2) ./ sum(m))
+            return vec(sum(@view(positions(cell)[1:3, :]) .* reshape(m, 1, :), dims=2) ./ sum(m))
         elseif center in (:center_of_positions, :cop)
             # Center of positions (geometric center)
-            return vec(mean(positions(cell), dims=2))
+            return vec(mean(@view(positions(cell)[1:3, :]), dims=2))
         elseif center in (:center_of_cell, :coc)
             # Center of the unit cell
             return vec(sum(cellmat(lattice(cell)), dims=2) ./ 2)
@@ -1208,7 +1283,9 @@ function _get_rotation_center(cell::Cell{T,D}, center::Union{NTuple{3,<:Real},Sy
             throw(ArgumentError("Unknown center specification: $center. Use :center_of_mass, :center_of_positions, or :center_of_cell"))
         end
     else
-        return collect(Float64, center)
+        length(center) >= 3 ||
+            throw(ArgumentError("Rotation center must have at least 3 coordinates"))
+        return collect(Float64, center[1:3])
     end
 end
 
@@ -1280,7 +1357,7 @@ function rotate(cell::Cell{T,D}, angle::Real, axis::Union{AbstractVector,Symbol,
     # Rotate positions: p' = R * (p - c) + c
     pos = positions(new_cell)
     for i = 1:natoms(new_cell)
-        pos[:, i] .= R * (pos[:, i] .- c) .+ c
+        pos[1:3, i] .= R * (pos[1:3, i] .- c) .+ c
     end
 
     # Optionally rotate lattice vectors
@@ -1308,7 +1385,7 @@ function rotate(cell::Cell{T,D}, v1::AbstractVector, v2::AbstractVector;
     # Rotate positions: p' = R * (p - c) + c
     pos = positions(new_cell)
     for i = 1:natoms(new_cell)
-        pos[:, i] .= R * (pos[:, i] .- c) .+ c
+        pos[1:3, i] .= R * (pos[1:3, i] .- c) .+ c
     end
 
     # Optionally rotate lattice vectors
@@ -1351,7 +1428,7 @@ function rotate!(cell::Cell{T,D}, angle::Real, axis::Union{AbstractVector,Symbol
     # Rotate positions: p' = R * (p - c) + c
     pos = positions(cell)
     for i = 1:natoms(cell)
-        pos[:, i] .= R * (pos[:, i] .- c) .+ c
+        pos[1:3, i] .= R * (pos[1:3, i] .- c) .+ c
     end
 
     # Optionally rotate lattice vectors
@@ -1376,7 +1453,7 @@ function rotate!(cell::Cell{T,D}, v1::AbstractVector, v2::AbstractVector;
     # Rotate positions: p' = R * (p - c) + c
     pos = positions(cell)
     for i = 1:natoms(cell)
-        pos[:, i] .= R * (pos[:, i] .- c) .+ c
+        pos[1:3, i] .= R * (pos[1:3, i] .- c) .+ c
     end
 
     # Optionally rotate lattice vectors

@@ -82,6 +82,58 @@ using Test
         end
     end
 
+    @testset "Hyperdimensional writers" begin
+        hyper = Cell(
+            Lattice(10.0, 10.0, 10.0),
+            [:H, :He],
+            [
+                1.0 2.0
+                3.0 4.0
+                5.0 6.0
+                0.25 -0.5
+            ],
+        )
+        hyper.arrays[:forces] = [
+            0.1 0.2
+            0.3 0.4
+            0.5 0.6
+        ]
+        hyper.metadata[:label] = "hyper"
+
+        mktemp() do path, io
+            @test_logs (:warn, r"write_poscar drops auxiliary dimensions") write_poscar(io, hyper)
+            seekstart(io)
+            lines = readlines(io)
+            @test any(x -> occursin("0.1000000000000000", x), lines)
+            @test any(x -> occursin("0.2000000000000000", x), lines)
+        end
+
+        mktempdir() do tempd
+            @test_logs (:warn, r"write_res drops auxiliary dimensions") write_res(joinpath(tempd, "hyper.res"), hyper)
+            @test_logs (:warn, r"write_cell drops auxiliary dimensions") CellBase.write_cell(joinpath(tempd, "hyper.cell"), hyper)
+        end
+
+        mktemp() do path, io
+            CellBase.push_xyz!(io, hyper)
+            seekstart(io)
+            lines = readlines(io)
+            @test occursin("extra_dim_1:R:1", lines[2])
+            @test parse(Float64, split(lines[3])[end]) ≈ 0.25
+            @test parse(Float64, split(lines[4])[end]) ≈ -0.5
+        end
+
+        mktemp() do path, io
+            CellBase.write_xyz(path, [hyper])
+            xyz_cells = CellBase.read_xyz(path)
+            @test length(xyz_cells) == 1
+            @test size(positions(xyz_cells[1])) == (4, 2)
+            @test positions(xyz_cells[1])[1:3, :] == positions(hyper)[1:3, :]
+            @test positions(xyz_cells[1])[4, :] == positions(hyper)[4, :]
+            @test CellBase.array(xyz_cells[1], :forces) == CellBase.array(hyper, :forces)
+            @test CellBase.metadata(xyz_cells[1])[:label] == "hyper"
+        end
+    end
+
     @testset "CASTEP" begin
         snapshots =
             CellBase.read_castep(joinpath(this_dir..., "Fe.castep"), only_first=false)

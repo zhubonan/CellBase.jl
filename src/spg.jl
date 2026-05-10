@@ -18,7 +18,10 @@ const SCell = Spglib.Cell
 Construct `Spglib.Cell` from `Cell` type.
 """
 SCell(cell::Cell) =
-    SCell(cellmat(cell), collect(eachcol(get_scaled_positions(cell))), atomic_numbers(cell))
+    begin
+        _require_three_cartesian_dimensions(cell, "Spglib conversion")
+        SCell(cellmat(cell), collect(eachcol(get_scaled_positions(cell))), atomic_numbers(cell))
+    end
 
 """
     Cell(cell::SCell)

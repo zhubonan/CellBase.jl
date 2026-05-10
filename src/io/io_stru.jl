@@ -219,6 +219,7 @@ end
 Write cell using the ABACUS STRU format.
 """
 function write_stru(io::IO, cell::Cell)
+    _warn_dropped_auxiliary_dimensions(cell, "write_stru")
     lat_ang = cellmat(cell)
 
     println(io, "ATOMIC_SPECIES")
@@ -244,7 +245,7 @@ function write_stru(io::IO, cell::Cell)
     println(io, "ATOMIC_POSITIONS")
     println(io, "Direct")
 
-    pos_frac = inv(lat_ang) * positions(cell)
+    pos_frac = inv(lat_ang) * @view(positions(cell)[1:3, :])
 
     sorted_species = sorted_symbols(unique(species(cell)))
 

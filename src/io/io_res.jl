@@ -153,6 +153,7 @@ The following fields are also treated as the `REM` line:
 The composition of the structure will be written as `REM Composition: <E1> <N1> <E2> <N2>`.
 """
 function write_res(io::IO, structure::Cell)
+    _warn_dropped_auxiliary_dimensions(structure, "write_res")
     infodict = structure.metadata
     titl = (
         label=get(infodict, :label, "CellBase-in-out"),

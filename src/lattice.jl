@@ -103,7 +103,7 @@ scellmat(lattice::Lattice) = SMatrix{3,3}(lattice.matrix)
 Set the cell matrix and update the reciprocal cell matrix.
 """
 function set_cellmat!(lattice::Lattice, mat)
-    lattice.matrix .= mat
+    lattice.matrix[1:3, :] .= mat
     update_rec!(lattice)
 end
 

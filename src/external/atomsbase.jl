@@ -34,7 +34,10 @@ Construct a `Cell` object into a `FlexibleSystem`.
 The length unit for the `Cell` object passed is assuemd to be `cell_unit`.
 """
 AtomsBase.atomic_system(cell::Cell; cell_unit=u"Å") = _cell_to_atomic_system(
-    lattice(cell),
+    begin
+        _require_three_cartesian_dimensions(cell, "AtomsBase.atomic_system")
+        lattice(cell)
+    end,
     species(cell),
     positions(cell),
     cell.arrays;
@@ -49,6 +52,8 @@ Construct a `Cell` object from AbstractSystem.
 The length unit for the `Cell` object returned well be in the `cell_unit`.
 """
 function Cell(system::AtomsBase.AbstractSystem; cell_unit=u"Å")
+    AtomsBase.n_dimensions(system) == 3 ||
+        throw(ArgumentError("Cell(system) only supports 3-dimensional AtomsBase systems"))
     pos = hcat(map(x -> collect(ustrip.(cell_unit, x)), AtomsBase.position(system, :))...)
     cm = hcat(map(x -> collect(ustrip.(cell_unit, x)), AtomsBase.bounding_box(system))...)
     @assert all(AtomsBase.periodicity(system))
@@ -92,9 +97,10 @@ AB.species(structure::Cell, idx) = AB.ChemicalSpecies.(structure.symbols[idx])
 
 
 function AB.cell(cell::Cell{T}) where {T}
+    _require_three_cartesian_dimensions(cell, "AtomsBase.cell")
     AB.PeriodicCell(
         cell_vectors=NTuple{3}(SVector{3,T}(x) .* u"Å" for x in eachcol(cellmat(cell))),
-        periodicity=(true, true, true),
+        periodicity=periodicity(cell),
     )
 end
 
@@ -130,11 +136,11 @@ function Base.haskey(system::Cell, x::Symbol)
 end
 
 function AB.bounding_box(cell::Cell{T}) where {T}
+    _require_three_cartesian_dimensions(cell, "AtomsBase.bounding_box")
     NTuple{3}(SVector{3,T}(x) .* u"Å" for x in eachcol(cellmat(cell)))
 end
 
 Base.keys(cell::Cell) = (:bounding_box, :periodicity, keys(cell.metadata)...)
-AB.periodicity(cell::Cell) = (true, true, true)
 AB.n_dimensions(cell::Cell{T,N}) where {T,N} = N
 
 const n_dimensions = AB.n_dimensions

@@ -5,6 +5,7 @@ version = "0.5.1"
 
 [deps]
 AtomsBase = "a963bdd2-2df7-4f54-a1ee-49d51e6be12a"
+ExtXYZ = "352459e4-ddd7-4360-8937-99dcb397b478"
 GZip = "92fee26a-97fe-5a0c-ad85-20a5f3185b63"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -18,12 +19,13 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
+AtomsBase = "0.4"
+ExtXYZ = "0.2.1"
 GZip = "0.5"
 LaTeXStrings = "1"
 Parameters = "0.12.0"
 PeriodicTable = "1.1.0"
 Spglib = "0.6.1"
 StaticArrays = "1"
-julia = "1.6"
-AtomsBase = "0.4"
 Unitful = "1"
+julia = "1.6"

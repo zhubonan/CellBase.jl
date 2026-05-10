@@ -8,6 +8,7 @@ Code for writing/parsing POSCAR
 Write cell using the POSCAR format.
 """
 function write_poscar(io::IO, cell::Cell)
+    _warn_dropped_auxiliary_dimensions(cell, "write_poscar")
     println(io, formula(cell))
     println(io, "  1.000000000000")
     latt = cellmat(cell)

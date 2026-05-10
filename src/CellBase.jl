@@ -1,5 +1,6 @@
 module CellBase
 import AtomsBase
+import AtomsBase: periodicity
 const AB = AtomsBase
 
 # Re-export from submodules
